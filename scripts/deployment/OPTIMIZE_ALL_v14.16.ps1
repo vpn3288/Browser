@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.15
+    Multi-Browser Anti-Detect Optimization Tool v14.16
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.15 - 修复4个BUG（Edge WebRTC策略、Firefox AI策略、日期不一致、Edge Chrome-only策略）
+    Version: 14.16 - 修复5个BUG（Chrome/Chromium检测、Firefox AIControls、Chrome GenAI、Edge EdgeDiscoverEnabled、README滞后）
     Date: 2026-05-18
 #>
 
@@ -437,7 +437,7 @@ function Set-ChromiumAdvancedConfig {
         $policies["ShowRecommendationsEnabled"] = 0
         $policies["ConfigureDoNotTrack"] = 1
         $policies["EdgeEnhanceImagesEnabled"] = 0
-        $policies["EdgeFollowEnabled"] = 0
+        # v14.16: 删除EdgeDiscoverEnabled（已obsolete，虚假优化）
         $policies["TranslateEnabled"] = 0  # v12.6
         $policies["EdgeWorkspacesEnabled"] = 0  # v12.6
         $policies["HubsSidebarEnabled"] = 0  # v12.6
@@ -468,6 +468,7 @@ function Set-ChromiumAdvancedConfig {
         # v14.12: Chrome专用WebRTC和安全浏览策略
         $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
         $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
+        $policies["GenAiDefaultSettings"] = 2  # v14.16: 禁用生成式AI功能
         
         # v14.11: 删除MediaRouterEnabled - 虚假优化（策略名错误，正确的是EnableMediaRouter）
         $policies["TranslateEnabled"] = 0  # v12.5
@@ -617,6 +618,12 @@ function Set-FirefoxAdvancedConfig {
                 TabGroups = $false
                 Locked = $true
             }
+            AIControls = @{  # v14.16: Mozilla官方AI总控策略
+                Default = @{
+                    Value = "blocked"
+                    Locked = $true
+                }
+            }
             VisualSearchEnabled = $false  # v14.15: 补充官方视觉搜索策略
             Preferences = @{
                 "browser.ml.chat.enabled" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用AI聊天功能
@@ -765,11 +772,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.15" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.16" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复4个BUG（Edge WebRTC策略、Firefox GenerativeAI策略、日期不一致、Edge Chrome-only策略）" -ForegroundColor Cyan
+Write-Host "  更新: 修复4个BUG（Firefox AIControls、Chrome GenAI、Edge EdgeDiscoverEnabled、README滞后）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
