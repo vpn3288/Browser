@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.24
+    Multi-Browser Anti-Detect Optimization Tool v14.25
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.24 - 修复1个BUG（Edge WebRtcIPHandlingUrl格式错误）
+    Version: 14.25 - 修复1个BUG（$userLocalAppData硬编码路径）
     Date: 2026-05-18
 #>
 
@@ -775,11 +775,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.24" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.25" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复1个BUG（Edge WebRtcIPHandlingUrl格式错误）" -ForegroundColor Cyan
+Write-Host "  更新: 修复1个BUG（$userLocalAppData硬编码路径）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
