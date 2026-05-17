@@ -254,11 +254,3 @@ v14.23 已达成所有目标：
 ---
 
 **版本：** v14.23 | **最后更新：** 2026-05-18 | **作者：** Kiro (AI Development Environment)
-
-## 📜 许可证
-
-MIT License
-
----
-
-**版本：** v14.22 | **最后更新：** 2026-05-18 | **作者：** Kiro (AI Development Environment)
