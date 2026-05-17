@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.11
+    Multi-Browser Anti-Detect Optimization Tool v14.13
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.12 - 修复5个BUG（Date重复、Edge策略、Chrome检测、Firefox警告、安全浏览）
+    Version: 14.13 - 修复4个BUG（SYNOPSIS版本号、Edge WebRTC、Edge书签栏、Firefox UserMessaging）
     Date: 2026-05-17
 #>
 
@@ -407,9 +407,13 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Edge") {
-        # v14.12: Edge专用WebRTC和安全浏览策略
+        # v14.13: Edge专用WebRTC和安全浏览策略
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"  # v14.13: 补充公网IP防护
         $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"
         $policies["SmartScreenEnabled"] = 1  # v14.12: Edge使用SmartScreen而非SafeBrowsing
+        
+        # v14.13: Edge专用书签栏策略
+        $policies["FavoritesBarEnabled"] = 1  # v14.13: Edge使用FavoritesBar而非BookmarkBar
         
         # Edge特定功能禁用
         $policies["EdgeShoppingAssistantEnabled"] = 0
@@ -586,6 +590,8 @@ function Set-FirefoxAdvancedConfig {
                 FeatureRecommendations = $false
                 UrlbarInterventions = $false
                 SkipOnboarding = $true
+                MoreFromMozilla = $false  # v14.13: 补充Mozilla推广内容
+                FirefoxLabs = $false  # v14.13: 补充Firefox实验功能推广
             }
             Cookies = @{
                 Behavior = "reject-tracker-and-partition-foreign"
@@ -725,11 +731,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.12" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.13" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-17" -ForegroundColor Cyan
-Write-Host "  更新: 修复5个BUG（Date重复、Edge策略、Chrome检测、Firefox警告、安全浏览）" -ForegroundColor Cyan
+Write-Host "  更新: 修复4个BUG（SYNOPSIS版本号、Edge WebRTC、Edge书签栏、Firefox UserMessaging）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
