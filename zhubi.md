@@ -1,7 +1,7 @@
 # 主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
-**最后更新：** 2026-05-18 v14.14（🎯 修复3个BUG - 最终封笔）  
+**最后更新：** 2026-05-18 v14.15（🎯 修复4个BUG - 最终封笔）  
 **仓库：** github.com/vpn3288/Browser
 
 ---
@@ -38,7 +38,49 @@
 
 ---
 
-## ✅ v14.14 修复3个BUG版 - 最终封笔（2026-05-18）
+## ✅ v14.15 修复4个BUG版 - 最终封笔（2026-05-18）
+
+### 🔴 v14.14的4个BUG
+
+| 问题 | 影响 |
+|------|------|
+| 1. Edge WebRTC策略不完整 | Edge使用了无效的WebRtcIPHandling，缺少官方WebRtcIPHandlingUrl |
+| 2. Firefox AI策略不完整 | 缺少官方GenerativeAI和VisualSearchEnabled策略 |
+| 3. 日期不一致 | 脚本头部是2026-05-18，主流程显示2026-05-17 |
+| 4. Edge包含Chrome-only策略 | Edge应用了不支持的Chrome策略，导致edge://policy显示无效策略 |
+
+### ✅ 主笔采纳（4个BUG修复）
+
+| 编号 | 问题 | 主笔决定 | 理由 |
+|------|------|----------|------|
+| 1 | Edge WebRTC策略不完整 | ✅ 采纳 | 删除无效的WebRtcIPHandling，补充WebRtcIPHandlingUrl |
+| 2 | Firefox AI策略不完整 | ✅ 采纳 | 补充官方GenerativeAI和VisualSearchEnabled策略 |
+| 3 | 日期不一致 | ✅ 采纳 | 统一为2026-05-18 |
+| 4 | Edge包含Chrome-only策略 | ✅ 采纳 | 删除Edge不支持的策略，补充Edge专用策略 |
+
+### ❌ 主笔拒绝（3个过度优化）
+
+| 编号 | 建议 | 主笔决定 | 理由 |
+|------|------|----------|------|
+| 1 | README版本滞后 | ❌ 拒绝 | 审核员看错了，README是v14.14 |
+| 2 | Opera扩展安装提示修改 | ❌ 拒绝 | 当前提示已足够清晰 |
+| 3 | 文档小修 | ❌ 拒绝 | 审核员看错了，所有文档都是v14.14 |
+
+### 📊 v14.15统计
+
+- **脚本行数**: 847行（+23行）
+- **审核员提出**: 7个问题
+- **主笔采纳**: 4个BUG修复
+- **主笔拒绝**: 3个过度优化建议
+- **采纳率**: 57%（只修复真实BUG）
+
+### 🗑️ 删除文件
+
+- scripts/deployment/OPTIMIZE_ALL_v14.14.ps1（有4个BUG）
+
+---
+
+## ✅ v14.14 修复3个BUG版（2026-05-18）
 
 ### 🔴 v14.13的3个BUG
 
