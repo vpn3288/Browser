@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.23
+    Multi-Browser Anti-Detect Optimization Tool v14.24
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.23 - 修复2个BUG（BraveP3AEnabled数据类型错误、Firefox RequestedLocales格式错误）
+    Version: 14.24 - 修复1个BUG（Edge WebRtcIPHandlingUrl格式错误）
     Date: 2026-05-18
 #>
 
@@ -420,9 +420,9 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Edge") {
-        # v14.19: Edge专用WebRTC策略（修复WebRtcLocalhostIpHandling值为Edge枚举）
-        $policies["WebRtcLocalhostIpHandling"] = "DisableNonProxiedUdp"
-        $policies["WebRtcIPHandlingUrl"] = '[{"handling":"disable_non_proxied_udp","url":"*"}]'
+        # Edge特定WebRTC策略
+        $policies["WebRtcLocalhostIpHandling"] = "DisableNonProxiedUdp"  # v14.19: 修复格式（PascalCase）
+        # v14.24: 删除WebRtcIPHandlingUrl（JSON字符串格式错误，WebRtcLocalhostIpHandling已足够）
         $policies["SmartScreenEnabled"] = 1  # v14.12: Edge使用SmartScreen而非SafeBrowsing
         
         # v14.13: Edge专用书签栏策略
@@ -775,11 +775,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.23" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.24" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复2个BUG（BraveP3AEnabled数据类型错误、Firefox RequestedLocales格式错误）" -ForegroundColor Cyan
+Write-Host "  更新: 修复1个BUG（Edge WebRtcIPHandlingUrl格式错误）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
