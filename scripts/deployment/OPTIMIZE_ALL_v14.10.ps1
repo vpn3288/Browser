@@ -2,13 +2,14 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.9
+    Multi-Browser Anti-Detect Optimization Tool v14.10
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.8 - 修复7个BUG、删除旧文件：删除启动器、修正策略名、清理冗余
+    Version: 14.10 - 修复3个BUG、补充1个策略版
+    Date: 2026-05-17
     Date: 2026-05-17 (Hotfix)
 #>
 
@@ -401,8 +402,7 @@ function Set-ChromiumAdvancedConfig {
         $policies["StartupBoostEnabled"] = 0  # v14.1: 禁用启动加速
         $policies["DefaultBrowserSettingsCampaignEnabled"] = 0  # v14.1: 禁用默认浏览器推广
         $policies["EdgeDiscoverEnabled"] = 0  # v14.2: 禁用Discover/Copilot侧边栏
-        $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"  # v14.8: Edge专用WebRTC策略
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"  # v14.9: 补充Edge通用WebRTC策略
+        # v14.10: 删除冗余WebRTC配置（已在通用配置块设置）
         # v14.8: 补充Edge新闻内容专用策略
         $policies["NewTabPageContentEnabled"] = 0
         $policies["NewTabPageQuickLinksEnabled"] = 0
@@ -517,8 +517,9 @@ function Set-FirefoxAdvancedConfig {
             DisableTelemetry = $true
             DisablePocket = $true
             DisableFirefoxStudies = $true
-            DontCheckDefaultBrowser = $true  # v14.9: 修正格式
-            ShowHomeButton = $true  # v14.9: 显示主页按钮
+            DontCheckDefaultBrowser = $true  # v14.8: 修正格式
+            ShowHomeButton = $true  # v14.8: 显示主页按钮
+            DisableDefaultBrowserAgent = $true  # v14.10: 禁用后台默认浏览器Agent
             # DisableFirefoxAccounts = $true  # v14.1: 删除此项，允许登录
             DisableFormHistory = $false  # v14.1: 允许表单历史
             OfferToSaveLogins = $true
@@ -526,9 +527,20 @@ function Set-FirefoxAdvancedConfig {
             FirefoxHome = @{
                 Search = $false
                 TopSites = $false
+                SponsoredTopSites = $false  # v14.10: 禁用赞助的常用网站
                 Highlights = $false
                 Pocket = $false
+                SponsoredPocket = $false  # v14.10: 禁用赞助的Pocket
+                Stories = $false  # v14.10: 禁用Stories
+                SponsoredStories = $false  # v14.10: 禁用赞助的Stories
                 Snippets = $false
+                Locked = $true  # v14.10: 锁定配置
+            }
+            FirefoxSuggest = @{  # v14.10: 禁用Firefox Suggest赞助建议
+                WebSuggestions = $false
+                SponsoredSuggestions = $false
+                ImproveSuggest = $false
+                Locked = $true
             }
             UserMessaging = @{
                 WhatsNew = $false
