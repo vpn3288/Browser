@@ -8,9 +8,8 @@
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.11 - 修复4个BUG、删除2个虚假优化版
+    Version: 14.12 - 修复5个BUG（Date重复、Edge策略、Chrome检测、Firefox警告、安全浏览）
     Date: 2026-05-17
-    Date: 2026-05-17 (Hotfix)
 #>
 
 $ErrorActionPreference = "Continue"
@@ -244,10 +243,29 @@ function Get-InstalledBrowsers {
             }
         }
         
-        # v14.9: Chromium最后校验 - 避免误判Chrome（移到所有检测方法之后）
-        if ($key -eq "Chromium" -and $foundPath -and $foundPath -notlike "*\Chromium\*") {
-            Write-Log "$($browser.Name) - 路径不包含Chromium，跳过（可能是Chrome）" "WARNING"
-            $foundPath = $null
+        # v14.12: Chrome/Chromium互相区分 - 用ProductName验证
+        if ($foundPath -and ($key -eq "Chrome" -or $key -eq "Chromium")) {
+            try {
+                $versionInfo = (Get-Item $foundPath).VersionInfo
+                $productName = $versionInfo.ProductName
+                
+                if ($key -eq "Chrome" -and $productName -notlike "*Google Chrome*") {
+                    Write-Log "$($browser.Name) - ProductName不匹配（$productName），跳过" "WARNING"
+                    $foundPath = $null
+                } elseif ($key -eq "Chromium" -and $productName -notlike "*Chromium*") {
+                    Write-Log "$($browser.Name) - ProductName不匹配（$productName），跳过" "WARNING"
+                    $foundPath = $null
+                }
+            } catch {
+                # 如果无法读取VersionInfo，用路径判断
+                if ($key -eq "Chromium" -and $foundPath -notlike "*\Chromium\*") {
+                    Write-Log "$($browser.Name) - 路径不包含Chromium，跳过（可能是Chrome）" "WARNING"
+                    $foundPath = $null
+                } elseif ($key -eq "Chrome" -and $foundPath -like "*\Chromium\*") {
+                    Write-Log "$($browser.Name) - 路径包含Chromium，跳过（可能是Chromium）" "WARNING"
+                    $foundPath = $null
+                }
+            }
         }
         
         # 如果找到了浏览器，添加到检测列表
@@ -299,7 +317,7 @@ function Set-ChromiumAdvancedConfig {
         "SpellcheckEnabled" = 0
         "SearchSuggestEnabled" = 0
         "AlternateErrorPagesEnabled" = 0
-        "SafeBrowsingEnabled" = 1  # v14.1: 启用安全浏览（修复CF验证）
+        # v14.12: 删除SafeBrowsingEnabled - Edge不使用此策略，用SmartScreenEnabled
         "SigninAllowed" = 1  # v14.1: 允许登录
         # "SyncDisabled" = 1  # v14.1: 删除此项，允许同步
         "BrowserSignin" = 1  # v14.1: 允许浏览器登录
@@ -365,15 +383,14 @@ function Set-ChromiumAdvancedConfig {
     $policies["ApplicationLocaleValue"] = $lang
     # v14.9: 删除 - 已禁用拼写检查，此项冗余
     
-    # WebRTC IP防护（v14.9: 补全所有Chromium系）
-    if ($BrowserKey -eq "Edge") {
-        $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"
-    } else {
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
-    }
+    # v14.12: 删除通用WebRTC配置块 - 移到浏览器特定块
     
     # 浏览器特定策略
     if ($BrowserKey -eq "Brave") {
+        # v14.12: Brave专用WebRTC策略
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
+        
+        # Brave特定功能禁用
         $policies["BraveRewardsDisabled"] = 1
         $policies["BraveWalletDisabled"] = 1
         $policies["TorDisabled"] = 1  # v14.2: 1 = 禁用Tor（0是启用）
@@ -390,6 +407,11 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Edge") {
+        # v14.12: Edge专用WebRTC和安全浏览策略
+        $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"
+        $policies["SmartScreenEnabled"] = 1  # v14.12: Edge使用SmartScreen而非SafeBrowsing
+        
+        # Edge特定功能禁用
         $policies["EdgeShoppingAssistantEnabled"] = 0
         $policies["EdgeCollectionsEnabled"] = 0
         $policies["ShowRecommendationsEnabled"] = 0
@@ -410,6 +432,10 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Opera") {
+        # v14.12: Opera专用WebRTC和安全浏览策略
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
+        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
+        
         # Opera 特定：禁用新闻、广告、搜索引擎
         $policies["DefaultSearchProviderEnabled"] = 1
         $policies["DefaultSearchProviderName"] = "Google"
@@ -419,11 +445,19 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Chrome") {
+        # v14.12: Chrome专用WebRTC和安全浏览策略
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
+        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
+        
         # v14.11: 删除MediaRouterEnabled - 虚假优化（策略名错误，正确的是EnableMediaRouter）
         $policies["TranslateEnabled"] = 0  # v12.5
     }
     
     if ($BrowserKey -eq "Vivaldi") {
+        # v14.12: Vivaldi专用WebRTC和安全浏览策略
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
+        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
+        
         # Vivaldi 特定：禁用独特功能
         # 注意：Vivaldi 的侧边栏、笔记等功能可能需要手动配置
         $policies["TranslateEnabled"] = 0
@@ -431,6 +465,10 @@ function Set-ChromiumAdvancedConfig {
     
 
     if ($BrowserKey -eq "Chromium") {
+        # v14.12: Chromium专用WebRTC和安全浏览策略
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
+        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
+        
         # Chromium 特定：纯净开源版本
         $policies["TranslateEnabled"] = 0  # v13.0
     }
@@ -583,6 +621,12 @@ function Set-FirefoxAdvancedConfig {
         $profilesDir = "$env:APPDATA\zen\Profiles"
     }
     
+    # v14.12: 添加Profiles目录不存在的警告
+    if (-not (Test-Path $profilesDir)) {
+        Write-Log "未找到 $BrowserKey 配置目录（$profilesDir），需要先启动一次浏览器后重新运行脚本" "WARNING"
+        return
+    }
+    
     if (Test-Path $profilesDir) {
         $profiles = Get-ChildItem -Path $profilesDir -Directory -ErrorAction SilentlyContinue
         
@@ -681,11 +725,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.11" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.12" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-17" -ForegroundColor Cyan
-Write-Host "  更新: 修复4个BUG、删除2个虚假优化" -ForegroundColor Cyan
+Write-Host "  更新: 修复5个BUG（Date重复、Edge策略、Chrome检测、Firefox警告、安全浏览）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
