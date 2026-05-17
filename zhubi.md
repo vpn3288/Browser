@@ -1,7 +1,7 @@
 # 主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
-**最后更新：** 2026-05-17 v14.10（🎯 修复3个BUG、补充1个策略 - 最终封笔）  
+**最后更新：** 2026-05-17 v14.11（🎯 修复4个BUG、删除2个虚假优化 - 最终封笔）  
 **仓库：** github.com/vpn3288/Browser
 
 ---
@@ -38,7 +38,97 @@
 
 ---
 
-## ✅ v14.10 修复3个BUG、补充1个策略版 - 最终封笔（2026-05-17）
+## ✅ v14.11 修复4个BUG、删除2个虚假优化版 - 最终封笔（2026-05-17）
+
+### 🔴 v14.10的4个BUG
+
+| 问题 | 影响 |
+|------|------|
+| 1. 版本号显示错误 | 脚本主界面仍显示v14.9，但文件名是v14.10 |
+| 2. 日期描述错误 | 更新说明仍为v14.9内容 |
+| 3. MediaRouterEnabled策略名错误 | 应该是EnableMediaRouter，且应在Chromium通用策略 |
+| 4. Firefox无profile时静默跳过 | 没有警告提示，用户不知道需要先启动浏览器 |
+
+### 🟡 v14.10的2个虚假优化
+
+| 问题 | 影响 |
+|------|------|
+| 5. browser.cache.offline.enable | Firefox 130+已移除此API |
+| 6. dom.battery.enabled | Firefox 131+已移除Battery API |
+
+### 🟢 v14.10缺少1个策略
+
+| 问题 | 影响 |
+|------|------|
+| 7. Firefox RequestedLocales | 缺少官方语言策略 |
+
+### ✅ v14.11修复方案
+
+```powershell
+# 1. 修复版本号显示
+Write-Host "Multi-Browser Anti-Detect Optimizer v14.11" -ForegroundColor Cyan
+
+# 2. 修复更新说明
+Write-Host "v14.11 更新：修复4个BUG、删除2个虚假优化" -ForegroundColor Yellow
+
+# 3. 修复MediaRouterEnabled策略名
+# Chromium通用策略
+$chromiumPolicies = @{
+    EnableMediaRouter = 0  # v14.11: 修正策略名，禁用Cast/媒体路由
+}
+
+# Chrome特定策略（删除错误的MediaRouterEnabled）
+if ($BrowserKey -eq "Chrome") {
+    $chromiumPolicies["TranslateEnabled"] = 0
+}
+
+# 4. 添加Firefox无profile警告
+if ($profiles.Count -eq 0) {
+    Write-Log "未找到 $BrowserKey 配置文件，需要先启动一次浏览器后重新运行脚本" "WARNING"
+}
+
+# 5-6. 删除Firefox虚假优化
+# 删除：user_pref("browser.cache.offline.enable", false);  // Firefox 130+已移除
+# 删除：user_pref("dom.battery.enabled", false);  // Firefox 131+已移除
+
+# 7. 补充Firefox RequestedLocales策略
+$firefoxPolicies = @{
+    RequestedLocales = $lang  # v14.11: 补充官方语言策略
+}
+```
+
+### 📊 审核员反馈统计
+
+| 审核员 | 提出问题 | 采纳数 | 拒绝数 | 采纳率 |
+|--------|----------|--------|--------|--------|
+| claude-opus-4-7 | 9个 | 6个 | 3个 | 67% |
+| Kiro审查员 | 0个 | 0个 | 0个 | - |
+| 第三位审核员 | 0个 | 0个 | 0个 | - |
+| **总计** | **9个** | **6个** | **3个** | **67%** |
+
+### ❌ 拒绝的3个过度优化建议
+
+| 建议 | 拒绝理由 |
+|------|----------|
+| 1. Chromium书签新标签页扩展 | 用户可用Ctrl+左键/中键，不需要扩展 |
+| 2. uBO Lite vs 经典版选择 | MV3是趋势，保持现状 |
+| 3. 删除DNT标头 | 这是隐私保护，不是负优化 |
+
+### 🗑️ 删除旧版本
+
+- `scripts/deployment/OPTIMIZE_ALL_v14.10.ps1`（有4个BUG）
+
+### 📈 v14.11统计
+
+- **脚本行数：** 763行（+4行）
+- **修复BUG：** 4个
+- **删除虚假优化：** 2个
+- **补充策略：** 1个
+- **删除旧版本：** 1个
+
+---
+
+## ✅ v14.10 修复3个BUG、补充1个策略版（2026-05-17）
 
 ### 🔴 v14.9的3个BUG
 
