@@ -52,7 +52,7 @@ function Write-Log {
 
 # ===== 浏览器配置 =====
 $currentUser = $env:USERNAME
-$userLocalAppData = "C:\Users\$currentUser\AppData\Local"
+$userLocalAppData = $env:LOCALAPPDATA  # v14.25: 修复硬编码路径（使用环境变量）
 
 $browsers = @{
     "Chrome" = @{
