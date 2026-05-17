@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.17
+    Multi-Browser Anti-Detect Optimization Tool v14.18
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.17 - 修复5个BUG（EdgeDiscoverEnabled虚假删除、EdgeEnhanceImagesEnabled废弃、Chrome GenAI cloud-only、README滞后、Edge WebRtcIPHandlingUrl格式）
+    Version: 14.18 - 修复3个BUG（README滞后、zhubi版本历史滞后、Edge WebRtcIPHandlingUrl格式）
     Date: 2026-05-18
 #>
 
@@ -416,9 +416,9 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Edge") {
-        # v14.15: Edge专用WebRTC策略（删除无效的WebRtcIPHandling，补充WebRtcIPHandlingUrl）
+        # WebRTC IP泄露防护（修复格式 - v14.18）
         $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"
-        $policies["WebRtcIPHandlingUrl"] = '{"*":"disable_non_proxied_udp"}'  # v14.17: 修复格式（简单键值对，不是数组）
+        $policies["WebRtcIPHandlingUrl"] = '[{"handling":"disable_non_proxied_udp","url":"*"}]'
         $policies["SmartScreenEnabled"] = 1  # v14.12: Edge使用SmartScreen而非SafeBrowsing
         
         # v14.13: Edge专用书签栏策略
@@ -772,11 +772,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.17" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.18" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复5个BUG（EdgeDiscoverEnabled虚假删除、EdgeEnhanceImagesEnabled废弃、Chrome GenAI cloud-only、README滞后、Edge WebRtcIPHandlingUrl格式）" -ForegroundColor Cyan
+Write-Host "  更新: 修复3个BUG（README滞后、zhubi版本历史滞后、Edge WebRtcIPHandlingUrl格式）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
