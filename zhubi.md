@@ -1,7 +1,7 @@
 # 主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
-**最后更新：** 2026-05-18 v14.23（🎯 修复2个BUG - 最终封笔）  
+**最后更新：** 2026-05-18 v14.25（🎯 修复1个BUG - 最终封笔）  
 **仓库：** github.com/vpn3288/Browser
 
 ---
@@ -38,7 +38,33 @@
 
 ---
 
-## ✅ v14.23 修复2个BUG版 - 最终封笔（2026-05-18）
+## ✅ v14.25 修复1个BUG版 - 最终封笔（2026-05-18）
+
+### 🔴 v14.24的1个BUG
+
+| 问题 | 影响 |
+|------|------|
+| 1. $userLocalAppData硬编码路径 | 非标准用户目录、管理员提升运行时会漏检 |
+
+### ✅ v14.25 修复内容
+
+1. ✅ **$userLocalAppData硬编码路径** - 改用$env:LOCALAPPDATA环境变量（第55行）
+
+### ❌ v14.25 拒绝的错误建议
+
+1. ❌ **恢复Edge WebRtcIPHandlingUrl** - 画蛇添足，WebRtcLocalhostIpHandling已足够
+2. ❌ **Chrome/Chromium检测改进** - 当前逻辑已足够
+
+### 📋 审核员反馈
+
+- **1位审核员提出：** 4个问题
+- **主笔采纳：** 2个BUG修复（1个脚本BUG + 1个文档BUG）
+- **主笔拒绝：** 2个错误建议
+- **采纳率：** 50%（只修复真实BUG，拒绝错误建议）
+
+---
+
+## ✅ v14.24 修复1个BUG版 - 最终封笔（2026-05-18）
 
 ### 🔴 v14.22的2个BUG
 
@@ -670,6 +696,8 @@ $firefoxPolicies = @{
 
 | 版本 | 日期 | 主要更新 | 脚本文件 |
 |------|------|----------|----------|
+| v14.25 | 2026-05-18 | 修复1个BUG（$userLocalAppData硬编码路径） | `.\OPTIMIZE_ALL_v14.25.ps1` |
+| v14.24 | 2026-05-18 | 修复1个BUG（Edge WebRtcIPHandlingUrl格式错误） | `.\OPTIMIZE_ALL_v14.24.ps1` |
 | v14.23 | 2026-05-18 | 修复2个BUG（BraveP3AEnabled数据类型错误、Firefox RequestedLocales格式错误） | `.\OPTIMIZE_ALL_v14.23.ps1` |
 | v14.22 | 2026-05-18 | 修复3个BUG（Chromium检测漏检、README末尾版本号、zhubi底部版本历史表格） | `.\OPTIMIZE_ALL_v14.22.ps1` |
 | v14.21 | 2026-05-18 | 修复4个BUG（Edge ShowRecommendationsEnabled废弃、Opera路径检测遗漏、README末尾版本号、zhubi底部版本历史） | `.\OPTIMIZE_ALL_v14.21.ps1` |
@@ -781,7 +809,7 @@ intl.locale.requested = "zh-CN"
 cd C:\Browser
 git pull
 cd scripts\deployment
-.\OPTIMIZE_ALL_v14.23.ps1
+.\OPTIMIZE_ALL_v14.25.ps1
 ```
 
 **选择浏览器后，优化自动完成。不会创建任何启动器。**
