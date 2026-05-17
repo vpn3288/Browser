@@ -2,14 +2,14 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v13.3
+    Multi-Browser Anti-Detect Optimization Tool v14.8
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 13.7 - 修复Opera无效参数、删除Firefox字体配置、增强WebRTC防护、优化Zen语言格式
-    Date: 2026-05-08 (Updated)
+    Version: 14.8 - 修复7个BUG、删除旧文件：删除启动器、修正策略名、清理冗余
+    Date: 2026-05-17 (Hotfix)
 #>
 
 $ErrorActionPreference = "Continue"
@@ -25,21 +25,8 @@ $languageConfig = @{
     "Chromium" = "zh-TW"
     "Firefox" = "zh-CN"
     "LibreWolf" = "zh-TW"
-    "Zen Browser" = "zh-CN"  # 默认使用简体中文
+    "Zen Browser" = "zh-CN"  # v14.8: 修正为单个locale
 }
-
-# User-Agent 配置（差异化 - 2026年5月版本）
-$userAgentConfig = @{
-    "Chrome" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-    "Edge" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0"
-    "Brave" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    "Opera" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 OPR/110.0.0.0"
-    "Vivaldi" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Vivaldi/6.7.3329.35"
-    "Chromium" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-}
-
-# 任务专用浏览器（最大化反检测，牺牲部分功能）
-$taskBrowsers = @("Opera")
 
 # ===== 日志系统 =====
 $logFile = "$PSScriptRoot\optimization_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
@@ -223,6 +210,12 @@ function Get-InstalledBrowsers {
             }
         }
         
+        # v14.8: Chromium特殊处理 - 避免误判Chrome
+        if ($key -eq "Chromium" -and $foundPath -and $foundPath -notlike "*\Chromium\*") {
+            Write-Log "$($browser.Name) - 路径不包含Chromium，跳过（可能是Chrome）" "WARNING"
+            $foundPath = $null
+        }
+        
         # 方法4: 扫描常见安装目录
         if (-not $foundPath) {
             $searchDirs = @(
@@ -285,24 +278,7 @@ function Set-ChromiumAdvancedConfig {
     
     Write-Log "优化 $browserName..." "HEADER"
     
-    # 清理Session文件（防止恢复旧标签页）
-    $userDataPath = $BrowserInfo.UserDataPath
-    if ($userDataPath -and (Test-Path $userDataPath)) {
-        $sessionPaths = @(
-            "$userDataPath\Default\Sessions",
-            "$userDataPath\Default\Session Storage"
-        )
-        foreach ($sessionPath in $sessionPaths) {
-            if (Test-Path $sessionPath) {
-                try {
-                    Remove-Item -Path "$sessionPath\*" -Recurse -Force -ErrorAction SilentlyContinue
-                    Write-Log "清理Session文件: $sessionPath" "SUCCESS"
-                } catch {
-                    Write-Log "清理Session文件失败: $_" "WARNING"
-                }
-            }
-        }
-    }
+    # v14.3: 删除清理Session文件逻辑（不必要，且可能影响网页状态）
     
     # 创建注册表键
     if (-not (Test-Path $regPath)) {
@@ -322,27 +298,27 @@ function Set-ChromiumAdvancedConfig {
         "SpellcheckEnabled" = 0
         "SearchSuggestEnabled" = 0
         "AlternateErrorPagesEnabled" = 0
-        "SafeBrowsingEnabled" = 0
-        "SigninAllowed" = 0
-        "SyncDisabled" = 1
-        "BrowserSignin" = 0
+        "SafeBrowsingEnabled" = 1  # v14.1: 启用安全浏览（修复CF验证）
+        "SigninAllowed" = 1  # v14.1: 允许登录
+        # "SyncDisabled" = 1  # v14.1: 删除此项，允许同步
+        "BrowserSignin" = 1  # v14.1: 允许浏览器登录
         "PasswordManagerEnabled" = 1
-        "AutofillAddressEnabled" = 0
-        "AutofillCreditCardEnabled" = 0
+        "AutofillAddressEnabled" = 1  # v14.1: 启用自动填充
+        "AutofillCreditCardEnabled" = 1  # v14.1: 启用自动填充
         
         # 反检测核心
-        "UserAgentClientHintsEnabled" = 0
-        "UserAgentClientHintsGREASEUpdateEnabled" = 0
-        "WebRtcIPHandlingPolicy" = "disable_non_proxied_udp"
+        # v14.8: 删除 - 虚假优化，暴露浏览器被修改
+        # v14.8: 删除 - 虚假优化，暴露浏览器被修改
+        # v14.8: WebRTC策略 - Edge使用专用策略名
         "WebRtcEventLogCollectionAllowed" = 0
+        "QuicAllowed" = 0  # v14.8: 禁用QUIC（所有Chromium系）
         
         # DNS-over-HTTPS
-        "DnsOverHttpsMode" = "secure"
+        "DnsOverHttpsMode" = "automatic"  # v14.2: automatic模式（有fallback，更稳定）
         "DnsOverHttpsTemplates" = "https://cloudflare-dns.com/dns-query"
         
         # 安全
-        "SSLErrorOverrideAllowed" = 0
-        "ThirdPartyBlockingEnabled" = 1
+        # "SSLErrorOverrideAllowed" = 1  # v14.3: 删除，不应允许绕过SSL警告
         "BlockThirdPartyCookies" = 1
         "DefaultCookiesSetting" = 1
         "DefaultNotificationsSetting" = 2
@@ -350,10 +326,10 @@ function Set-ChromiumAdvancedConfig {
         
         # UI/UX
         "BookmarkBarEnabled" = 1
-        "ShowHomeButton" = 0
+        "ShowHomeButton" = 1  # v14.8: 保留主页按钮
         "HomepageLocation" = "about:blank"
         "HomepageIsNewTabPage" = 1  # 主页就是新标签页
-        "RestoreOnStartup" = 1  # 1 = 打开新标签页（空白页）
+        "RestoreOnStartup" = 5  # v14.1: 5 = 打开新标签页（空白页）
         "NewTabPageLocation" = "about:blank"
         "BackgroundModeEnabled" = 0
         "HideWebStoreIcon" = 1
@@ -363,14 +339,14 @@ function Set-ChromiumAdvancedConfig {
         
         # 高级反检测
         "UrlKeyedAnonymizedDataCollectionEnabled" = 0
-        "NetworkPredictionOptions" = 2
-        "BuiltInDnsClientEnabled" = 0
+        # v14.8: 删除 - 负优化，牺牲速度
+        # v14.8: 删除 - 与DoH冲突
         "PaymentMethodQueryEnabled" = 0
         "SignedHTTPExchangeEnabled" = 0
-        "ImportAutofillFormData" = 0
-        "ImportBookmarks" = 0
-        "ImportHistory" = 0
-        "ImportSavedPasswords" = 0
+        "ImportAutofillFormData" = 1  # v14.1: 允许导入
+        "ImportBookmarks" = 1  # v14.1: 允许导入书签
+        "ImportHistory" = 1  # v14.1: 允许导入历史
+        "ImportSavedPasswords" = 1  # v14.1: 允许导入密码
         
         # 隐私沙盒
         "PrivacySandboxAdMeasurementEnabled" = 0
@@ -385,17 +361,27 @@ function Set-ChromiumAdvancedConfig {
     # 语言设置（差异化）
     $lang = $languageConfig[$BrowserKey]
     $policies["ApplicationLocaleValue"] = $lang
-    $policies["SpellcheckLanguage"] = $lang
+    # v14.8: 删除 - 已禁用拼写检查，此项冗余
+    
+    # WebRTC IP防护（v14.8: 补全所有Chromium系）
+    if ($BrowserKey -eq "Edge") {
+        $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"
+    } else {
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
+    }
     
     # 浏览器特定策略
     if ($BrowserKey -eq "Brave") {
         $policies["BraveRewardsDisabled"] = 1
         $policies["BraveWalletDisabled"] = 1
         $policies["BraveAdsEnabled"] = 0
-        $policies["TorDisabled"] = 0
+        $policies["TorDisabled"] = 1  # v14.2: 1 = 禁用Tor（0是启用）
         $policies["TranslateEnabled"] = 0  # v12.7
-        $policies["BraveVPNEnabled"] = 0  # v12.7
+        $policies["BraveVPNDisabled"] = 1  # v14.2: 修正策略名
         $policies["IPFSEnabled"] = 0  # v12.7
+        $policies["BraveNewsDisabled"] = 1  # v14.3: 修正策略名
+        $policies["BraveAIChatEnabled"] = 0  # v14.3: 禁用AI Chat
+        $policies["BraveTalkDisabled"] = 1  # v14.3: 禁用Talk
     }
     
     if ($BrowserKey -eq "Edge") {
@@ -409,6 +395,13 @@ function Set-ChromiumAdvancedConfig {
         $policies["EdgeWorkspacesEnabled"] = 0  # v12.6
         $policies["HubsSidebarEnabled"] = 0  # v12.6
         $policies["EdgeWalletEnabled"] = 0  # v12.6
+        $policies["StartupBoostEnabled"] = 0  # v14.1: 禁用启动加速
+        $policies["DefaultBrowserSettingsCampaignEnabled"] = 0  # v14.1: 禁用默认浏览器推广
+        $policies["EdgeDiscoverEnabled"] = 0  # v14.2: 禁用Discover/Copilot侧边栏
+        $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"  # v14.8: Edge专用WebRTC策略
+        # v14.8: 补充Edge新闻内容专用策略
+        $policies["NewTabPageContentEnabled"] = 0
+        $policies["NewTabPageQuickLinksEnabled"] = 0
     }
     
     if ($BrowserKey -eq "Opera") {
@@ -422,26 +415,21 @@ function Set-ChromiumAdvancedConfig {
     
     if ($BrowserKey -eq "Chrome") {
         # Chrome 特定：禁用 Google 服务集成
-        $policies["ChromeCleanupEnabled"] = 0
-        $policies["ChromeCleanupReportingEnabled"] = 0
-        $policies["MediaRouterEnabled"] = 0  # 禁用 Chromecast
-        $policies["CloudPrintSubmitEnabled"] = 0
+        $policies["MediaRouterEnabled"] = 0  # v14.8: 修正策略名
+        # v14.8: 删除 - 虚假优化（服务已关闭）
         $policies["TranslateEnabled"] = 0  # v12.5
-        $policies["QuicAllowed"] = 1  # v12.5
     }
     
     if ($BrowserKey -eq "Vivaldi") {
         # Vivaldi 特定：禁用独特功能
         # 注意：Vivaldi 的侧边栏、笔记等功能可能需要手动配置
         $policies["TranslateEnabled"] = 0
-        $policies["QuicAllowed"] = 1  # v12.9
     }
     
 
     if ($BrowserKey -eq "Chromium") {
         # Chromium 特定：纯净开源版本
         $policies["TranslateEnabled"] = 0  # v13.0
-        $policies["QuicAllowed"] = 1  # v13.0
     }
     # 应用策略
     $successCount = 0
@@ -525,8 +513,10 @@ function Set-FirefoxAdvancedConfig {
             DisableTelemetry = $true
             DisablePocket = $true
             DisableFirefoxStudies = $true
-            DisableFirefoxAccounts = $true
-            DisableFormHistory = $true
+            DontCheckDefaultBrowser = $true  # v14.8: 修正格式
+            ShowHomeButton = $true  # v14.8: 显示主页按钮
+            # DisableFirefoxAccounts = $true  # v14.1: 删除此项，允许登录
+            DisableFormHistory = $false  # v14.1: 允许表单历史
             OfferToSaveLogins = $true
             PasswordManagerEnabled = $true
             FirefoxHome = @{
@@ -591,25 +581,28 @@ function Set-FirefoxAdvancedConfig {
             }
             
             $userJsContent = @"
-// ===== 核心反指纹 =====
-user_pref("privacy.resistFingerprinting", true);
-user_pref("privacy.resistFingerprinting.letterboxing", true);
+// ===== v14.3 实用版反检测配置 =====
 
-// ===== WebRTC 完全禁用 =====
-user_pref("media.peerconnection.enabled", false);
-user_pref("media.peerconnection.ice.default_address_only", true);
+// ===== 温和的指纹保护 =====
+user_pref("privacy.trackingprotection.fingerprinting.enabled", true);
+user_pref("privacy.trackingprotection.enabled", true);
+user_pref("privacy.trackingprotection.pbmode.enabled", true);
+user_pref("privacy.trackingprotection.socialtracking.enabled", true);
+
+// ===== WebRTC IP防护（不完全禁用）=====
+user_pref("media.peerconnection.enabled", true); 
+user_pref("media.peerconnection.ice.default_address_only", true);  // 但防止IP泄露
 user_pref("media.peerconnection.ice.no_host", true);
 user_pref("media.peerconnection.ice.proxy_only_if_behind_proxy", true);
 
-// ===== 地理位置和传感器 =====
-user_pref("geo.enabled", false);
-user_pref("geo.provider.network.url", "");
-user_pref("device.sensors.enabled", false);
-user_pref("media.navigator.enabled", true);
+// ===== 书签在新标签页打开 =====
+user_pref("browser.tabs.loadBookmarksInTabs", true); 
+user_pref("browser.tabs.loadBookmarksInBackground", false); 
 
-// ===== 第一方隔离（已删除，resistFingerprinting 提供足够保护）=====
-// user_pref("privacy.firstparty.isolate", true);
-// user_pref("privacy.firstparty.isolate.restrict_opener_access", true);
+// ===== 地理位置和传感器（不完全禁用）=====
+// geo.enabled 和 device.sensors.enabled 不设置，让网站可以请求权限
+// v14.8: 删除 - 负优化，破坏地理位置功能
+user_pref("media.navigator.enabled", true);
 
 // ===== Cookie 策略 =====
 user_pref("network.cookie.cookieBehavior", 5);
@@ -620,17 +613,12 @@ user_pref("privacy.clearOnShutdown.cache", false);
 user_pref("privacy.clearOnShutdown.sessions", false);
 user_pref("privacy.clearOnShutdown.offlineApps", false);
 
-// ===== 追踪保护 =====
-user_pref("privacy.trackingprotection.enabled", true);
-user_pref("privacy.trackingprotection.pbmode.enabled", true);
-user_pref("privacy.trackingprotection.socialtracking.enabled", true);
-
 // ===== Referer 控制 =====
-user_pref("network.http.referer.XOriginPolicy", 2);
+// v14.8: 删除 - 负优化，破坏登录/支付/SSO
 user_pref("network.http.referer.XOriginTrimmingPolicy", 2);
 
 // ===== DNS-over-HTTPS =====
-user_pref("network.trr.mode", 3);
+user_pref("network.trr.mode", 2); 
 user_pref("network.trr.uri", "https://cloudflare-dns.com/dns-query");
 
 // ===== 语言设置 =====
@@ -651,9 +639,6 @@ user_pref("datareporting.healthreport.uploadEnabled", false);
 user_pref("browser.contentblocking.category", "strict");
 user_pref("privacy.donottrackheader.enabled", true);
 
-// ===== 书签新标签页打开并跳转 =====
-user_pref("browser.tabs.loadBookmarksInTabs", true);
-user_pref("browser.tabs.loadBookmarksInBackground", false);
 "@
             
             try {
@@ -667,111 +652,15 @@ user_pref("browser.tabs.loadBookmarksInBackground", false);
 }
 
 # ===== 生成启动脚本 =====
-function Generate-LaunchScripts {
-    param([hashtable]$Browsers)
-    
-    Write-Log "生成启动脚本..." "HEADER"
-    
-    $scriptDir = Join-Path $PSScriptRoot "..\..\scripts\launch"
-    if (-not (Test-Path $scriptDir)) {
-        New-Item -Path $scriptDir -ItemType Directory -Force | Out-Null
-    }
-    
-    foreach ($key in $Browsers.Keys) {
-        $browser = $Browsers[$key]
-        $exePath = $browser.ExePath
-        $lang = $languageConfig[$key]
-        
-        $launchScript = "@echo off`r`n"
-        $launchScript += "REM $($browser.Name) 启动脚本 - 反检测配置`r`n`r`n"
-        
-        if ($browser.Type -eq "Chromium") {
-            $acceptLang = "$lang,$($lang.Split('-')[0]);q=0.9,en-US;q=0.8,en;q=0.7"
-            $userAgent = $userAgentConfig[$key]
-            
-            $launchScript += "start `"`" `"$exePath`" ^`r`n"
-            $launchScript += "--lang=$lang ^`r`n"
-            $launchScript += "--accept-lang=`"$acceptLang`" ^`r`n"
-            
-            # User-Agent 差异化
-            if ($userAgent) {
-                $launchScript += "--user-agent=`"$userAgent`" ^`r`n"
-            }
-            
-            $launchScript += "--disable-blink-features=AutomationControlled ^`r`n"
-            $launchScript += "--exclude-switches=enable-automation ^`r`n"
-            $launchScript += "--disable-features=UserAgentClientHints,PrivacySandboxSettings4,FederatedCredentialManagement,AutofillServerCommunication,WebRtcHideLocalIpsWithMdns ^`r`n"
-            $launchScript += "--disable-client-side-phishing-detection ^`r`n"
-            $launchScript += "--disable-sync ^`r`n"
-            $launchScript += "--disable-background-networking ^`r`n"
-            $launchScript += "--disable-default-apps ^`r`n"
-            $launchScript += "--disable-component-extensions-with-background-pages ^`r`n"
-            $launchScript += "--disable-breakpad ^`r`n"
-            $launchScript += "--disable-crash-reporter ^`r`n"
-            $launchScript += "--metrics-recording-only ^`r`n"
-            $launchScript += "--no-first-run ^`r`n"
-            $launchScript += "--no-default-browser-check ^`r`n"
-            $launchScript += "--no-service-autorun ^`r`n"
-            $launchScript += "--force-webrtc-ip-handling-policy=disable_non_proxied_udp`r`n"
-            $launchScript += "`r`n"
-            
-            # 任务专用浏览器：最大化反检测（牺牲部分功能）
-            if ($key -in $taskBrowsers) {
-                $launchScript += "--disable-reading-from-canvas ^`r`n"
-                $launchScript += "--disable-webgl ^`r`n"
-                $launchScript += "--disable-webgl2 ^`r`n"
-            }
-            
-            # Brave 专属参数（游戏浏览器，保留功能）
-            if ($key -eq "Brave") {
-                $launchScript += "--fingerprinting-canvas-image-data-noise ^`r`n"
-                $launchScript += "--fingerprinting-canvas-measuretext-noise ^`r`n"
-                $launchScript += "--fingerprinting-client-rects-noise ^`r`n"
-            }
-            
-            # Opera 专属：注意事项
-            # Opera 的 VPN/News/Turbo 无法通过启动参数禁用，需要手动配置
-            # 启动后访问 opera://settings 手动关闭这些功能
-            
-            $launchScript += "`r`necho $($browser.Name) 已启动`r`n"
-            if ($key -in $taskBrowsers) {
-                $launchScript += "echo [任务模式] Canvas/WebGL 已禁用`r`n"
-            } else {
-                $launchScript += "echo [游戏模式] 完整功能`r`n"
-            }
-            $launchScript += "`r`n"
-        } else {
-            # Firefox 系
-            $launchScript += "start `"`" `"$exePath`" -no-remote`r`n"
-            $launchScript += "`r`necho $($browser.Name) 已启动`r`n"
-        }
-        
-        $scriptFile = Join-Path $scriptDir "Launch_$key.bat"
-        [System.IO.File]::WriteAllText($scriptFile, $launchScript, [System.Text.Encoding]::ASCII)
-        Write-Log "生成启动脚本: Launch_$key.bat" "SUCCESS"
-    }
-    
-    # 生成 Launch_All.bat
-    $allScript = "@echo off`r`n"
-    $allScript += "echo 正在启动所有浏览器...`r`n`r`n"
-    foreach ($key in $Browsers.Keys) {
-        $allScript += "call `"%~dp0Launch_$key.bat`"`r`n"
-        $allScript += "timeout /t 2 /nobreak >nul`r`n"
-    }
-    $allScript += "`r`necho 所有浏览器已启动`r`n"
-    $allScript += "pause`r`n"
-    
-    $allScriptPath = Join-Path $scriptDir "Launch_All.bat"
-    [System.IO.File]::WriteAllText($allScriptPath, $allScript, [System.Text.Encoding]::ASCII)
-    Write-Log "生成批量启动脚本: Launch_All.bat" "SUCCESS"
-}
+# v14.3: 删除启动脚本生成功能（用户要求不使用启动器）
+
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v13.7" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.8" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
-Write-Host "  日期: 2026-05-07" -ForegroundColor Cyan
+Write-Host "  日期: 2026-05-17" -ForegroundColor Cyan
 Write-Host "  更新: 修复Opera无效参数、删除Firefox字体配置、增强WebRTC防护" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
@@ -782,7 +671,7 @@ $detectedBrowsers = Get-InstalledBrowsers
 
 # 显示选择菜单
 Write-Host "`n检测到以下浏览器:" -ForegroundColor Cyan
-$browserList = @($detectedBrowsers.Keys)
+$browserList = @($detectedBrowsers.Keys | Sort-Object)  # v14.8: 固定顺序
 for ($i = 0; $i -lt $browserList.Count; $i++) {
     $key = $browserList[$i]
     Write-Host "  [$i] $($detectedBrowsers[$key].Name)" -ForegroundColor Yellow
@@ -824,14 +713,13 @@ foreach ($key in $selectedBrowsers.Keys) {
 }
 
 # 生成启动脚本
-Generate-LaunchScripts -Browsers $selectedBrowsers
+# v14.3: 删除启动脚本生成调用
 
 # 完成
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "  优化完成！" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Log "成功优化 $($selectedBrowsers.Count) 个浏览器" "SUCCESS"
-Write-Log "启动脚本位置: scripts\launch\" "INFO"
 Write-Log "日志文件: $logFile" "INFO"
 
 # Opera 特别提示
@@ -849,75 +737,3 @@ if ($selectedBrowsers.ContainsKey("Opera")) {
     Write-Host "   扩展安装：Opera 扩展需要从 addons.opera.com 安装（不兼容 Chrome 商店）" -ForegroundColor Yellow
 }
 
-# ===== 创建桌面启动器 =====
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  创建桌面启动器" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "是否为优化后的浏览器创建桌面启动器？" -ForegroundColor Yellow
-Write-Host "- 启动器将使用浏览器原生图标" -ForegroundColor White
-Write-Host "- 启动器会自动加载反检测参数" -ForegroundColor White
-Write-Host "- 名称格式：'浏览器名 (Anti-Detect)'" -ForegroundColor White
-Write-Host "" -ForegroundColor White
-$createLaunchers = Read-Host "创建桌面启动器？(Y/N)"
-
-if ($createLaunchers -eq "Y" -or $createLaunchers -eq "y") {
-    Write-Host "`n正在创建桌面启动器..." -ForegroundColor Cyan
-    
-    $desktopPath = [Environment]::GetFolderPath("Desktop")
-    $launchScriptsDir = Join-Path $PSScriptRoot "..\..\scripts\launch"
-    $WScriptShell = New-Object -ComObject WScript.Shell
-    
-    $launcherCount = 0
-    
-    foreach ($key in $selectedBrowsers.Keys) {
-        $browser = $selectedBrowsers[$key]
-        $browserName = $browser.Name
-        
-        # 确定图标路径（使用浏览器原生图标）
-        $iconPath = $browser.ExePath
-        
-        # 确定启动脚本路径
-        $launchScriptName = "Launch_$key.bat"
-        $launchScriptPath = Join-Path $launchScriptsDir $launchScriptName
-        
-        if (-not (Test-Path $launchScriptPath)) {
-            Write-Host "  跳过: $browserName - 启动脚本不存在" -ForegroundColor Yellow
-            continue
-        }
-        
-        # 创建快捷方式
-        $shortcutName = "$browserName (Anti-Detect).lnk"
-        $shortcutPath = Join-Path $desktopPath $shortcutName
-        
-        try {
-            $shortcut = $WScriptShell.CreateShortcut($shortcutPath)
-            $shortcut.TargetPath = $launchScriptPath
-            $shortcut.WorkingDirectory = $launchScriptsDir
-            $shortcut.Description = "Launch $browserName with anti-detection optimizations"
-            $shortcut.IconLocation = "$iconPath,0"
-            $shortcut.Save()
-            
-            Write-Host "  ✅ 已创建: $shortcutName" -ForegroundColor Green
-            $launcherCount++
-        } catch {
-            Write-Host "  ❌ 创建失败: $shortcutName - $_" -ForegroundColor Red
-        }
-    }
-    
-    Write-Host "`n========================================" -ForegroundColor Green
-    Write-Host "  启动器创建完成！" -ForegroundColor Green
-    Write-Host "========================================" -ForegroundColor Green
-    Write-Host "成功创建 $launcherCount 个桌面启动器" -ForegroundColor Cyan
-    Write-Host "位置: $desktopPath" -ForegroundColor Cyan
-    Write-Host "" -ForegroundColor White
-    Write-Host "⚠️  重要提示：" -ForegroundColor Yellow
-    Write-Host "- 请使用新创建的启动器启动浏览器" -ForegroundColor Yellow
-    Write-Host "- 不要使用原浏览器的快捷方式" -ForegroundColor Yellow
-    Write-Host "- 启动器会自动加载反检测参数" -ForegroundColor Yellow
-} else {
-    Write-Host "`n已跳过创建桌面启动器" -ForegroundColor Yellow
-    Write-Host "提示: 请使用 scripts\launch\ 目录下的启动脚本启动浏览器" -ForegroundColor Cyan
-}
-
-Write-Host "`n按任意键退出..." -ForegroundColor Gray
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
