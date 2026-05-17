@@ -1,7 +1,7 @@
 # 主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
-**最后更新：** 2026-05-18 v14.22（🎯 修复3个BUG - 最终封笔）  
+**最后更新：** 2026-05-18 v14.23（🎯 修复2个BUG - 最终封笔）  
 **仓库：** github.com/vpn3288/Browser
 
 ---
@@ -35,6 +35,38 @@
 - ❌ **NoScript** - 破坏登录和使用体验
 
 **总计：最多3个扩展（2个必装 + 1个可选），符合"不过度优化"原则**
+
+---
+
+## ✅ v14.23 修复2个BUG版 - 最终封笔（2026-05-18）
+
+### 🔴 v14.22的2个BUG
+
+| 问题 | 影响 |
+|------|------|
+| 1. BraveP3AEnabled数据类型错误 | 使用字符串"Disabled"而非整数0 |
+| 2. Firefox RequestedLocales格式错误 | 使用字符串而非数组格式 |
+
+### ✅ v14.23 修复内容
+
+1. ✅ **BraveP3AEnabled数据类型错误** - 改回整数0（第417行）
+2. ✅ **Firefox RequestedLocales格式错误** - 改为数组格式@($lang)（第585行）
+
+### ❌ v14.23 拒绝的错误建议/过度优化
+
+1. ❌ **恢复Edge ShowRecommendationsEnabled** - Edge 122+已标记obsolete，审核员理解错误
+2. ❌ **Chrome/Chromium检测改进** - 当前逻辑已足够，不需要重构
+3. ❌ **zhubi底部v14.10残留** - 已经更新，审核员看的是旧版本
+4. ❌ **删除Opera Turbo提示** - 部分Opera版本仍有此功能，保留无害
+5. ❌ **Firefox intl.accept_languages统一格式** - 当前格式已正确，不需要统一
+6. ❌ **旧版残留注册表策略清理** - 过度优化，增加复杂度
+
+### 📋 审核员反馈
+
+- **3位审核员提出：** 8个问题
+- **主笔采纳：** 2个BUG修复
+- **主笔拒绝：** 6个错误建议/过度优化
+- **采纳率：** 25%（只修复真实BUG，拒绝错误建议）
 
 ---
 
@@ -638,6 +670,7 @@ $firefoxPolicies = @{
 
 | 版本 | 日期 | 主要更新 | 脚本文件 |
 |------|------|----------|----------|
+| v14.23 | 2026-05-18 | 修复2个BUG（BraveP3AEnabled数据类型错误、Firefox RequestedLocales格式错误） | `.\OPTIMIZE_ALL_v14.23.ps1` |
 | v14.22 | 2026-05-18 | 修复3个BUG（Chromium检测漏检、README末尾版本号、zhubi底部版本历史表格） | `.\OPTIMIZE_ALL_v14.22.ps1` |
 | v14.21 | 2026-05-18 | 修复4个BUG（Edge ShowRecommendationsEnabled废弃、Opera路径检测遗漏、README末尾版本号、zhubi底部版本历史） | `.\OPTIMIZE_ALL_v14.21.ps1` |
 | v14.20 | 2026-05-18 | 修复3个BUG（Edge EdgeWalletEnabled废弃、BraveP3AEnabled类型错误、README末尾版本号） | `.\OPTIMIZE_ALL_v14.20.ps1` |
@@ -748,7 +781,7 @@ intl.locale.requested = "zh-CN"
 cd C:\Browser
 git pull
 cd scripts\deployment
-.\OPTIMIZE_ALL_v14.22.ps1
+.\OPTIMIZE_ALL_v14.23.ps1
 ```
 
 **选择浏览器后，优化自动完成。不会创建任何启动器。**
