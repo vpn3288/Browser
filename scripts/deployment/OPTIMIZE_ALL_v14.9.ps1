@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.7
+    Multi-Browser Anti-Detect Optimization Tool v14.9
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.7 - 修复5个硬伤BUG：删除启动器、修正策略名、清理冗余
+    Version: 14.8 - 修复7个BUG、删除旧文件：删除启动器、修正策略名、清理冗余
     Date: 2026-05-17 (Hotfix)
 #>
 
@@ -25,7 +25,7 @@ $languageConfig = @{
     "Chromium" = "zh-TW"
     "Firefox" = "zh-CN"
     "LibreWolf" = "zh-TW"
-    "Zen Browser" = "zh-CN"  # v14.7: 修正为单个locale
+    "Zen Browser" = "zh-CN"  # v14.9: 修正为单个locale
 }
 
 # ===== 日志系统 =====
@@ -210,12 +210,6 @@ function Get-InstalledBrowsers {
             }
         }
         
-        # v14.7: Chromium特殊处理 - 避免误判Chrome
-        if ($key -eq "Chromium" -and $foundPath -and $foundPath -notlike "*\Chromium\*") {
-            Write-Log "$($browser.Name) - 路径不包含Chromium，跳过（可能是Chrome）" "WARNING"
-            $foundPath = $null
-        }
-        
         # 方法4: 扫描常见安装目录
         if (-not $foundPath) {
             $searchDirs = @(
@@ -247,6 +241,12 @@ function Get-InstalledBrowsers {
                     }
                 }
             }
+        }
+        
+        # v14.9: Chromium最后校验 - 避免误判Chrome（移到所有检测方法之后）
+        if ($key -eq "Chromium" -and $foundPath -and $foundPath -notlike "*\Chromium\*") {
+            Write-Log "$($browser.Name) - 路径不包含Chromium，跳过（可能是Chrome）" "WARNING"
+            $foundPath = $null
         }
         
         # 如果找到了浏览器，添加到检测列表
@@ -307,10 +307,11 @@ function Set-ChromiumAdvancedConfig {
         "AutofillCreditCardEnabled" = 1  # v14.1: 启用自动填充
         
         # 反检测核心
-        # v14.7: 删除 - 虚假优化，暴露浏览器被修改
-        # v14.7: 删除 - 虚假优化，暴露浏览器被修改
-        # v14.7: WebRTC策略 - Edge使用专用策略名
+        # v14.9: 删除 - 虚假优化，暴露浏览器被修改
+        # v14.9: 删除 - 虚假优化，暴露浏览器被修改
+        # v14.9: WebRTC策略 - Edge使用专用策略名
         "WebRtcEventLogCollectionAllowed" = 0
+        "QuicAllowed" = 0  # v14.9: 禁用QUIC（所有Chromium系）
         
         # DNS-over-HTTPS
         "DnsOverHttpsMode" = "automatic"  # v14.2: automatic模式（有fallback，更稳定）
@@ -318,7 +319,6 @@ function Set-ChromiumAdvancedConfig {
         
         # 安全
         # "SSLErrorOverrideAllowed" = 1  # v14.3: 删除，不应允许绕过SSL警告
-        "ThirdPartyBlockingEnabled" = 1
         "BlockThirdPartyCookies" = 1
         "DefaultCookiesSetting" = 1
         "DefaultNotificationsSetting" = 2
@@ -326,7 +326,7 @@ function Set-ChromiumAdvancedConfig {
         
         # UI/UX
         "BookmarkBarEnabled" = 1
-        "ShowHomeButton" = 1  # v14.7: 保留主页按钮
+        "ShowHomeButton" = 1  # v14.9: 保留主页按钮
         "HomepageLocation" = "about:blank"
         "HomepageIsNewTabPage" = 1  # 主页就是新标签页
         "RestoreOnStartup" = 5  # v14.1: 5 = 打开新标签页（空白页）
@@ -339,8 +339,8 @@ function Set-ChromiumAdvancedConfig {
         
         # 高级反检测
         "UrlKeyedAnonymizedDataCollectionEnabled" = 0
-        # v14.7: 删除 - 负优化，牺牲速度
-        # v14.7: 删除 - 与DoH冲突
+        # v14.9: 删除 - 负优化，牺牲速度
+        # v14.9: 删除 - 与DoH冲突
         "PaymentMethodQueryEnabled" = 0
         "SignedHTTPExchangeEnabled" = 0
         "ImportAutofillFormData" = 1  # v14.1: 允许导入
@@ -361,9 +361,9 @@ function Set-ChromiumAdvancedConfig {
     # 语言设置（差异化）
     $lang = $languageConfig[$BrowserKey]
     $policies["ApplicationLocaleValue"] = $lang
-    # v14.7: 删除 - 已禁用拼写检查，此项冗余
+    # v14.9: 删除 - 已禁用拼写检查，此项冗余
     
-    # WebRTC IP防护（v14.7: 补全所有Chromium系）
+    # WebRTC IP防护（v14.9: 补全所有Chromium系）
     if ($BrowserKey -eq "Edge") {
         $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"
     } else {
@@ -374,7 +374,6 @@ function Set-ChromiumAdvancedConfig {
     if ($BrowserKey -eq "Brave") {
         $policies["BraveRewardsDisabled"] = 1
         $policies["BraveWalletDisabled"] = 1
-        $policies["BraveAdsEnabled"] = 0
         $policies["TorDisabled"] = 1  # v14.2: 1 = 禁用Tor（0是启用）
         $policies["TranslateEnabled"] = 0  # v12.7
         $policies["BraveVPNDisabled"] = 1  # v14.2: 修正策略名
@@ -382,6 +381,10 @@ function Set-ChromiumAdvancedConfig {
         $policies["BraveNewsDisabled"] = 1  # v14.3: 修正策略名
         $policies["BraveAIChatEnabled"] = 0  # v14.3: 禁用AI Chat
         $policies["BraveTalkDisabled"] = 1  # v14.3: 禁用Talk
+        # v14.9: 补充Brave官方隐私策略
+        $policies["BraveP3AEnabled"] = 0
+        $policies["BraveStatsPingEnabled"] = 0
+        $policies["BraveWebDiscoveryEnabled"] = 0
     }
     
     if ($BrowserKey -eq "Edge") {
@@ -398,7 +401,11 @@ function Set-ChromiumAdvancedConfig {
         $policies["StartupBoostEnabled"] = 0  # v14.1: 禁用启动加速
         $policies["DefaultBrowserSettingsCampaignEnabled"] = 0  # v14.1: 禁用默认浏览器推广
         $policies["EdgeDiscoverEnabled"] = 0  # v14.2: 禁用Discover/Copilot侧边栏
-        $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"  # v14.7: Edge专用WebRTC策略
+        $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"  # v14.8: Edge专用WebRTC策略
+        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"  # v14.9: 补充Edge通用WebRTC策略
+        # v14.8: 补充Edge新闻内容专用策略
+        $policies["NewTabPageContentEnabled"] = 0
+        $policies["NewTabPageQuickLinksEnabled"] = 0
     }
     
     if ($BrowserKey -eq "Opera") {
@@ -412,12 +419,9 @@ function Set-ChromiumAdvancedConfig {
     
     if ($BrowserKey -eq "Chrome") {
         # Chrome 特定：禁用 Google 服务集成
-        $policies["ChromeCleanupEnabled"] = 0
-        $policies["ChromeCleanupReportingEnabled"] = 0
-        $policies["EnableMediaRouter"] = 0  # v14.7: 修正语法
-        # v14.7: 删除 - 虚假优化（服务已关闭）
+        $policies["MediaRouterEnabled"] = 0  # v14.9: 修正策略名
+        # v14.9: 删除 - 虚假优化（服务已关闭）
         $policies["TranslateEnabled"] = 0  # v12.5
-        $policies["QuicAllowed"] = 0  # v14.7: 禁用QUIC（过墙时易被干扰）
     }
     
     if ($BrowserKey -eq "Vivaldi") {
@@ -513,7 +517,8 @@ function Set-FirefoxAdvancedConfig {
             DisableTelemetry = $true
             DisablePocket = $true
             DisableFirefoxStudies = $true
-                    DontCheckDefaultBrowser = $true  # v14.7: 修正格式
+            DontCheckDefaultBrowser = $true  # v14.9: 修正格式
+            ShowHomeButton = $true  # v14.9: 显示主页按钮
             # DisableFirefoxAccounts = $true  # v14.1: 删除此项，允许登录
             DisableFormHistory = $false  # v14.1: 允许表单历史
             OfferToSaveLogins = $true
@@ -600,7 +605,7 @@ user_pref("browser.tabs.loadBookmarksInBackground", false);
 
 // ===== 地理位置和传感器（不完全禁用）=====
 // geo.enabled 和 device.sensors.enabled 不设置，让网站可以请求权限
-// v14.7: 删除 - 负优化，破坏地理位置功能
+// v14.9: 删除 - 负优化，破坏地理位置功能
 user_pref("media.navigator.enabled", true);
 
 // ===== Cookie 策略 =====
@@ -613,8 +618,7 @@ user_pref("privacy.clearOnShutdown.sessions", false);
 user_pref("privacy.clearOnShutdown.offlineApps", false);
 
 // ===== Referer 控制 =====
-// v14.7: 删除 - 负优化，破坏登录/支付/SSO
-user_pref("network.http.referer.XOriginTrimmingPolicy", 2);
+// v14.9: 已删除 XOriginTrimmingPolicy - 负优化，破坏登录/支付/SSO
 
 // ===== DNS-over-HTTPS =====
 user_pref("network.trr.mode", 2); 
@@ -643,6 +647,11 @@ user_pref("privacy.donottrackheader.enabled", true);
             try {
                 [System.IO.File]::WriteAllText($userJsPath, $userJsContent, [System.Text.Encoding]::UTF8)
                 Write-Log "创建 user.js: $($profile.Name)" "SUCCESS"
+                # v14.9: 添加重启提示
+                $prefsPath = Join-Path $profile.FullName "prefs.js"
+                if (Test-Path $prefsPath) {
+                    Write-Log "检测到已有配置文件，user.js 需要重启浏览器后生效" "WARNING"
+                }
             } catch {
                 Write-Log "创建 user.js 失败: $_" "WARNING"
             }
@@ -656,7 +665,7 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.7" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.9" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-17" -ForegroundColor Cyan
@@ -670,7 +679,7 @@ $detectedBrowsers = Get-InstalledBrowsers
 
 # 显示选择菜单
 Write-Host "`n检测到以下浏览器:" -ForegroundColor Cyan
-$browserList = @($detectedBrowsers.Keys | Sort-Object)  # v14.7: 固定顺序
+$browserList = @($detectedBrowsers.Keys | Sort-Object)  # v14.9: 固定顺序
 for ($i = 0; $i -lt $browserList.Count; $i++) {
     $key = $browserList[$i]
     Write-Host "  [$i] $($detectedBrowsers[$key].Name)" -ForegroundColor Yellow
