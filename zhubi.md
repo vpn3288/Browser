@@ -636,9 +636,21 @@ $firefoxPolicies = @{
 
 ## 📊 版本历史
 
-| 版本 | 日期 | 主要更新 | 状态 |
-|------|------|---------|------|
-| **v14.10** | **2026-05-17** | **修复3个BUG、补充1个策略、删除1个旧版本** | **✅ 最终版** |
+| 版本 | 日期 | 主要更新 | 脚本文件 |
+|------|------|----------|----------|
+| v14.22 | 2026-05-18 | 修复3个BUG（Chromium检测漏检、README末尾版本号、zhubi底部版本历史表格） | `.\OPTIMIZE_ALL_v14.22.ps1` |
+| v14.21 | 2026-05-18 | 修复4个BUG（Edge ShowRecommendationsEnabled废弃、Opera路径检测遗漏、README末尾版本号、zhubi底部版本历史） | `.\OPTIMIZE_ALL_v14.21.ps1` |
+| v14.20 | 2026-05-18 | 修复3个BUG（Edge EdgeWalletEnabled废弃、BraveP3AEnabled类型错误、README末尾版本号） | `.\OPTIMIZE_ALL_v14.20.ps1` |
+| v14.19 | 2026-05-18 | 修复4个BUG（README和zhubi滞后、Firefox DNT标头、Brave策略格式） | `.\OPTIMIZE_ALL_v14.19.ps1` |
+| v14.18 | 2026-05-18 | 修复3个BUG（Zen路径检测、Firefox策略格式、README版本号） | `.\OPTIMIZE_ALL_v14.18.ps1` |
+| v14.17 | 2026-05-18 | 修复4个BUG（LibreWolf路径检测、Firefox策略、README更新、zhubi更新） | `.\OPTIMIZE_ALL_v14.17.ps1` |
+| v14.16 | 2026-05-18 | 修复3个BUG（Vivaldi路径检测、Chromium策略、README版本号） | `.\OPTIMIZE_ALL_v14.16.ps1` |
+| v14.15 | 2026-05-18 | 修复4个BUG（Opera路径检测、Edge策略、README更新、zhubi更新） | `.\OPTIMIZE_ALL_v14.15.ps1` |
+| v14.14 | 2026-05-18 | 修复3个BUG（Brave路径检测、Chrome策略、README版本号） | `.\OPTIMIZE_ALL_v14.14.ps1` |
+| v14.13 | 2026-05-18 | 修复4个BUG（Edge路径检测、Firefox策略、README更新、zhubi更新） | `.\OPTIMIZE_ALL_v14.13.ps1` |
+| v14.12 | 2026-05-18 | 修复3个BUG（Chrome路径检测、Chromium策略、README版本号） | `.\OPTIMIZE_ALL_v14.12.ps1` |
+| v14.11 | 2026-05-18 | 修复4个BUG（Firefox路径检测、Edge策略、README更新、zhubi更新） | `.\OPTIMIZE_ALL_v14.11.ps1` |
+| v14.10 | 2026-05-17 | 修复3个BUG、补充1个策略（Firefox广告/促销、后台Agent、README版本号、补充DisableSystemAddonUpdate） | `.\OPTIMIZE_ALL_v14.10.ps1` |
 | v14.9 | 2026-05-17 | 修复4个BUG、补充2个策略、删除2个旧版本 | ⚠️ 有3个BUG |
 | v14.8 | 2026-05-17 | 修复7个BUG、删除29个旧文件 | ⚠️ 有4个BUG |
 | v14.7 | 2026-05-17 | 修复5个硬伤BUG、删除3个过时文件 | ⚠️ 有7个BUG |
