@@ -1,7 +1,7 @@
 # 主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
-**最后更新：** 2026-05-18 v14.15（🎯 修复4个BUG - 最终封笔）  
+**最后更新：** 2026-05-18 v14.16（🎯 修复4个BUG - 最终封笔）  
 **仓库：** github.com/vpn3288/Browser
 
 ---
@@ -38,7 +38,52 @@
 
 ---
 
-## ✅ v14.15 修复4个BUG版 - 最终封笔（2026-05-18）
+## ✅ v14.16 修复4个BUG版 - 最终封笔（2026-05-18）
+
+### 🔴 v14.15的4个BUG
+
+| 问题 | 影响 |
+|------|------|
+| 1. Firefox AIControls策略缺失 | 缺少Mozilla官方AI总控策略 |
+| 2. Chrome GenAiDefaultSettings缺失 | 缺少Chrome官方AI总开关 |
+| 3. Edge EdgeDiscoverEnabled已废弃 | 使用了obsolete策略，是虚假优化 |
+| 4. README内容严重滞后 | README从v14.10开始全是旧内容，会误导用户 |
+
+### ✅ 主笔采纳（4个BUG修复）
+
+| 编号 | 问题 | 主笔决定 | 理由 |
+|------|------|----------|------|
+| 1 | Firefox AIControls策略缺失 | ✅ 采纳 | Mozilla官方新版总控策略，比browser.ml.*更准确 |
+| 2 | Chrome GenAiDefaultSettings缺失 | ✅ 采纳 | Chrome官方AI总开关，值2禁用生成式AI |
+| 3 | Edge EdgeDiscoverEnabled已废弃 | ✅ 采纳 | 微软官方标明obsolete，是虚假优化 |
+| 4 | README内容严重滞后 | ✅ 采纳 | 文档从v14.10开始全是旧内容，会误导用户 |
+
+### ❌ 主笔拒绝（6个过度优化）
+
+| 编号 | 建议 | 主笔决定 | 理由 |
+|------|------|----------|------|
+| 1 | Edge TrackingPrevention改为3 | ❌ 拒绝 | 当前2（平衡）已足够，3（严格）可能破坏部分网站 |
+| 2 | Firefox GenerativeAI简化结构 | ❌ 拒绝 | 当前结构更明确，即使部分字段无效也不影响功能 |
+| 3 | Firefox DNT标头删除 | ❌ 拒绝 | 虽然已废弃但不影响功能，删除是画蛇添足 |
+| 4 | zhubi.md版本历史未更新 | ❌ 拒绝 | 版本历史表格已经很详细，不需要再加 |
+| 5 | zhubi.md扩展表格Chrome留空 | ❌ 拒绝 | README已经说明，zhubi.md不需要重复 |
+| 6 | Chrome/Chromium检测漏检 | ❌ 拒绝 | 当前逻辑虽不完美但基本可用，重写风险大 |
+
+### 📊 v14.16统计
+
+- **脚本行数**: 854行（+7行）
+- **审核员提出**: 11个问题
+- **主笔采纳**: 4个BUG修复
+- **主笔拒绝**: 6个过度优化建议（包括1个风险大的重写）
+- **采纳率**: 36%（只修复真实BUG，拒绝所有过度优化）
+
+### 🗑️ 删除文件
+
+- scripts/deployment/OPTIMIZE_ALL_v14.15.ps1（有4个BUG）
+
+---
+
+## ✅ v14.15 修复4个BUG版（2026-05-18）
 
 ### 🔴 v14.14的4个BUG
 

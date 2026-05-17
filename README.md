@@ -2,16 +2,16 @@
 
 一键优化9个主流浏览器的反检测和隐私保护工具。
 
-**版本：** v14.15 | **状态：** ✅ 修复4个BUG版（最终封笔） | **更新：** 2026-05-18
+**版本：** v14.16 | **状态：** ✅ 修复4个BUG版（最终封笔） | **更新：** 2026-05-18
 
 ---
 
 ## 🎯 核心功能
 
-- ✅ **修复4个BUG** - v14.15修复所有剩余BUG
-- ✅ **Edge WebRTC完整** - 使用官方WebRtcIPHandlingUrl策略
-- ✅ **Edge策略清理** - 删除Chrome-only策略，补充Edge专用策略
-- ✅ **Firefox GenerativeAI完整** - 补充官方GenerativeAI和VisualSearchEnabled策略
+- ✅ **修复4个BUG** - v14.16修复所有剩余BUG
+- ✅ **Firefox AIControls完整** - 补充Mozilla官方AI总控策略
+- ✅ **Chrome GenAI完整** - 补充Chrome官方AI总开关
+- ✅ **Edge策略清理** - 删除obsolete策略（EdgeDiscoverEnabled）
 - ✅ **核心反检测** - WebRTC防护、禁用遥测、阻止追踪
 - ✅ **实用优先** - 允许登录、同步、导入书签
 - ✅ **不依赖启动器** - 完全删除启动器，直接优化浏览器本身
@@ -33,9 +33,9 @@
 git clone https://github.com/vpn3288/Browser.git
 cd Browser
 
-# 运行v14.15最终版
+# 运行v14.16最终版
 cd scripts\deployment
-.\OPTIMIZE_ALL_v14.15.ps1
+.\OPTIMIZE_ALL_v14.16.ps1
 ```
 
 ### 选择浏览器
