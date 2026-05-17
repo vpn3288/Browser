@@ -1,7 +1,7 @@
 # 主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
-**最后更新：** 2026-05-17 v14.11（🎯 修复4个BUG、删除2个虚假优化 - 最终封笔）  
+**最后更新：** 2026-05-17 v14.12（🎯 修复5个BUG - 最终封笔）  
 **仓库：** github.com/vpn3288/Browser
 
 ---
@@ -38,7 +38,58 @@
 
 ---
 
-## ✅ v14.11 修复4个BUG、删除2个虚假优化版 - 最终封笔（2026-05-17）
+## ✅ v14.12 修复5个BUG版 - 最终封笔（2026-05-17）
+
+### 🔴 v14.11的5个BUG
+
+| 问题 | 影响 |
+|------|------|
+| 1. Date字段重复 | 脚本头部有两个Date字段，第二个是多余的 |
+| 2. Edge WebRTC策略位置错误 | WebRTC策略在通用块，应该在Edge特定块 |
+| 3. Firefox无profile目录警告缺失 | Profiles目录不存在时静默跳过，没有警告 |
+| 4. Chrome/Chromium检测互相误判 | 两者都是chrome.exe，容易误判 |
+| 5. Edge安全浏览策略用错体系 | Edge用SafeBrowsingEnabled，应该用SmartScreenEnabled |
+
+### ✅ 主笔采纳（5个BUG修复）
+
+| 编号 | 问题 | 主笔决定 | 理由 |
+|------|------|----------|------|
+| 1 | Date字段重复 | ✅ 采纳 | 删除第13行重复的Date字段 |
+| 2 | Edge WebRTC策略位置错误 | ✅ 采纳 | 移到Edge特定块，保持代码组织清晰 |
+| 3 | Firefox无profile目录警告缺失 | ✅ 采纳 | 添加Profiles目录不存在时的警告 |
+| 4 | Chrome/Chromium检测互相误判 | ✅ 采纳 | 用ProductName验证，避免误判 |
+| 5 | Edge安全浏览策略用错体系 | ✅ 采纳 | Edge用SmartScreenEnabled，Chrome系用SafeBrowsingProtectionLevel |
+
+### ❌ 主笔拒绝（4个过度优化）
+
+| 编号 | 建议 | 主笔决定 | 理由 |
+|------|------|----------|------|
+| 1 | 删除DNT标头 | ❌ 拒绝 | DNT是W3C标准隐私保护，不是负优化 |
+| 2 | Opera搜索策略无效 | ❌ 拒绝 | Opera基于Chromium 109+，支持DefaultSearchProvider策略族 |
+| 3 | Firefox DoH与Clash Meta冲突 | ❌ 拒绝 | network.trr.mode=2是正确的，Clash Meta会接管DNS |
+| 4 | Firefox覆盖用户配置 | ❌ 拒绝 | 这是优化脚本，不是配置管理器，用户运行前应该知道会覆盖 |
+
+### 🟢 策略优化
+
+- **Edge**: SmartScreenEnabled=1（替代SafeBrowsingEnabled）
+- **Chrome/Opera/Vivaldi/Chromium**: SafeBrowsingProtectionLevel=1（替代SafeBrowsingEnabled）
+- **所有Chromium系**: WebRtcIPHandling统一配置到各浏览器特定块
+
+### 📊 v14.12统计
+
+- **脚本行数**: 807行（+44行）
+- **审核员提出**: 9个问题
+- **主笔采纳**: 5个BUG修复
+- **主笔拒绝**: 4个过度优化建议
+- **采纳率**: 56%（只修复真实BUG）
+
+### 🗑️ 删除文件
+
+- scripts/deployment/OPTIMIZE_ALL_v14.11.ps1（有5个BUG）
+
+---
+
+## ✅ v14.11 修复4个BUG、删除2个虚假优化版（2026-05-17）
 
 ### 🔴 v14.10的4个BUG
 

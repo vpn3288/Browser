@@ -2,22 +2,23 @@
 
 一键优化9个主流浏览器的反检测和隐私保护工具。
 
-**版本：** v14.11 | **状态：** ✅ 修复4个BUG、删除2个虚假优化版（最终封笔） | **更新：** 2026-05-17
+**版本：** v14.12 | **状态：** ✅ 修复5个BUG版（最终封笔） | **更新：** 2026-05-17
 
 ---
 
 ## 🎯 核心功能
 
-- ✅ **修复4个BUG** - v14.11修复所有剩余BUG
-- ✅ **删除2个虚假优化** - v14.11删除Firefox已废弃API
-- ✅ **补充1个策略** - v14.11补充Firefox RequestedLocales策略
+- ✅ **修复5个BUG** - v14.12修复所有剩余BUG
+- ✅ **优化策略体系** - Edge用SmartScreen，Chrome系用SafeBrowsingProtectionLevel
+- ✅ **Chrome/Chromium检测准确** - 用ProductName验证，避免误判
+- ✅ **Firefox警告完整** - Profiles目录不存在时也会警告
 - ✅ **核心反检测** - WebRTC防护、禁用遥测、阻止追踪
 - ✅ **实用优先** - 允许登录、同步、导入书签
-- ✅ **不依赖启动器** - 完全基于注册表策略和配置文件
-
-**支持浏览器（9个）：**
-- Chromium系：Chrome, Edge, Brave, Opera, Vivaldi, Chromium
-- Firefox系：Firefox, LibreWolf, Zen Browser
+- ✅ **不依赖启动器** - 完全删除启动器，直接优化浏览器本身
+- ✅ **中文界面** - 所有浏览器使用中文（简繁混合）
+- ✅ **空白主页** - 新标签页和主页都是about:blank
+- ✅ **书签栏默认打开** - 所有浏览器默认显示书签栏
+- ✅ **禁止后台运行** - 关闭浏览器后完全退出
 
 ---
 
@@ -32,9 +33,9 @@
 git clone https://github.com/vpn3288/Browser.git
 cd Browser
 
-# 运行v14.11最终版
+# 运行v14.12最终版
 cd scripts\deployment
-.\OPTIMIZE_ALL_v14.11.ps1
+.\OPTIMIZE_ALL_v14.12.ps1
 ```
 
 ### 选择浏览器
