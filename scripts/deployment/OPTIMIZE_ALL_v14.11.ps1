@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.10
+    Multi-Browser Anti-Detect Optimization Tool v14.11
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.10 - 修复3个BUG、补充1个策略版
+    Version: 14.11 - 修复4个BUG、删除2个虚假优化版
     Date: 2026-05-17
     Date: 2026-05-17 (Hotfix)
 #>
@@ -313,6 +313,7 @@ function Set-ChromiumAdvancedConfig {
         # v14.9: WebRTC策略 - Edge使用专用策略名
         "WebRtcEventLogCollectionAllowed" = 0
         "QuicAllowed" = 0  # v14.9: 禁用QUIC（所有Chromium系）
+        "EnableMediaRouter" = 0  # v14.11: 禁用Cast/媒体路由（所有Chromium系）
         
         # DNS-over-HTTPS
         "DnsOverHttpsMode" = "automatic"  # v14.2: automatic模式（有fallback，更稳定）
@@ -418,9 +419,7 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Chrome") {
-        # Chrome 特定：禁用 Google 服务集成
-        $policies["MediaRouterEnabled"] = 0  # v14.9: 修正策略名
-        # v14.9: 删除 - 虚假优化（服务已关闭）
+        # v14.11: 删除MediaRouterEnabled - 虚假优化（策略名错误，正确的是EnableMediaRouter）
         $policies["TranslateEnabled"] = 0  # v12.5
     }
     
@@ -520,6 +519,7 @@ function Set-FirefoxAdvancedConfig {
             DontCheckDefaultBrowser = $true  # v14.8: 修正格式
             ShowHomeButton = $true  # v14.8: 显示主页按钮
             DisableDefaultBrowserAgent = $true  # v14.10: 禁用后台默认浏览器Agent
+            RequestedLocales = $lang  # v14.11: 补充官方语言策略
             # DisableFirefoxAccounts = $true  # v14.1: 删除此项，允许登录
             DisableFormHistory = $false  # v14.1: 允许表单历史
             OfferToSaveLogins = $true
@@ -586,6 +586,10 @@ function Set-FirefoxAdvancedConfig {
     if (Test-Path $profilesDir) {
         $profiles = Get-ChildItem -Path $profilesDir -Directory -ErrorAction SilentlyContinue
         
+        if ($profiles.Count -eq 0) {
+            Write-Log "未找到 $BrowserKey 配置文件，需要先启动一次浏览器后重新运行脚本" "WARNING"
+        }
+        
         foreach ($profile in $profiles) {
             $userJsPath = Join-Path $profile.FullName "user.js"
             
@@ -623,7 +627,7 @@ user_pref("media.navigator.enabled", true);
 // ===== Cookie 策略 =====
 user_pref("network.cookie.cookieBehavior", 5);
 user_pref("network.cookie.lifetimePolicy", 0);
-user_pref("browser.cache.offline.enable", false);
+// v14.11: 删除 browser.cache.offline.enable - 虚假优化（Firefox 130+已移除）
 user_pref("privacy.clearOnShutdown.cookies", false);
 user_pref("privacy.clearOnShutdown.cache", false);
 user_pref("privacy.clearOnShutdown.sessions", false);
@@ -643,7 +647,7 @@ user_pref("intl.locale.matchOS", false);
 user_pref("general.useragent.locale", "$lang");
 
 // ===== 电池 API =====
-user_pref("dom.battery.enabled", false);
+// v14.11: 删除 dom.battery.enabled - 虚假优化（Firefox 131+已移除）
 
 // ===== 遥测 =====
 user_pref("toolkit.telemetry.enabled", false);
@@ -677,11 +681,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.9" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.11" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-17" -ForegroundColor Cyan
-Write-Host "  更新: 修复Opera无效参数、删除Firefox字体配置、增强WebRTC防护" -ForegroundColor Cyan
+Write-Host "  更新: 修复4个BUG、删除2个虚假优化" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
