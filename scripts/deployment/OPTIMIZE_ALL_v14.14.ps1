@@ -2,14 +2,14 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.13
+    Multi-Browser Anti-Detect Optimization Tool v14.14
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.13 - 修复4个BUG（SYNOPSIS版本号、Edge WebRTC、Edge书签栏、Firefox UserMessaging）
-    Date: 2026-05-17
+    Version: 14.14 - 修复3个BUG（Firefox BackgroundAppUpdate、Firefox AI/视觉搜索、Chromium PromotionsEnabled）
+    Date: 2026-05-18
 #>
 
 $ErrorActionPreference = "Continue"
@@ -354,6 +354,7 @@ function Set-ChromiumAdvancedConfig {
         "BackgroundModeEnabled" = 0
         "HideWebStoreIcon" = 1
         "PromotionalTabsEnabled" = 0
+        "PromotionsEnabled" = 0  # v14.14: 补充新版促销策略
         "UserFeedbackAllowed" = 0
         "DefaultBrowserSettingEnabled" = 0
         
@@ -561,6 +562,7 @@ function Set-FirefoxAdvancedConfig {
             DontCheckDefaultBrowser = $true  # v14.8: 修正格式
             ShowHomeButton = $true  # v14.8: 显示主页按钮
             DisableDefaultBrowserAgent = $true  # v14.10: 禁用后台默认浏览器Agent
+            BackgroundAppUpdate = $false  # v14.14: 禁用后台更新（不禁用手动更新）
             RequestedLocales = $lang  # v14.11: 补充官方语言策略
             # DisableFirefoxAccounts = $true  # v14.1: 删除此项，允许登录
             DisableFormHistory = $false  # v14.1: 允许表单历史
@@ -592,6 +594,15 @@ function Set-FirefoxAdvancedConfig {
                 SkipOnboarding = $true
                 MoreFromMozilla = $false  # v14.13: 补充Mozilla推广内容
                 FirefoxLabs = $false  # v14.13: 补充Firefox实验功能推广
+            }
+            Preferences = @{
+                "browser.ml.chat.enabled" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用AI聊天功能
+                "browser.ml.chat.sidebar" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用AI聊天侧边栏
+                "browser.urlbar.suggest.mdn" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用MDN建议
+                "browser.urlbar.trending.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用趋势搜索
+                "browser.urlbar.weather.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用天气建议
+                "browser.urlbar.addons.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用扩展建议
+                "browser.urlbar.pocket.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用Pocket建议
             }
             Cookies = @{
                 Behavior = "reject-tracker-and-partition-foreign"
@@ -731,11 +742,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.13" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.14" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-17" -ForegroundColor Cyan
-Write-Host "  更新: 修复4个BUG（SYNOPSIS版本号、Edge WebRTC、Edge书签栏、Firefox UserMessaging）" -ForegroundColor Cyan
+Write-Host "  更新: 修复3个BUG（Firefox BackgroundAppUpdate、Firefox AI/视觉搜索、Chromium PromotionsEnabled）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
