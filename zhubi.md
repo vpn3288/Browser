@@ -1,7 +1,7 @@
 # 主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
-**最后更新：** 2026-05-18 v14.20（🎯 修复3个BUG - 最终封笔）  
+**最后更新：** 2026-05-18 v14.21（🎯 修复4个BUG - 最终封笔）  
 **仓库：** github.com/vpn3288/Browser
 
 ---
@@ -35,6 +35,44 @@
 - ❌ **NoScript** - 破坏登录和使用体验
 
 **总计：最多3个扩展（2个必装 + 1个可选），符合"不过度优化"原则**
+
+---
+
+## ✅ v14.21 修复4个BUG版 - 最终封笔（2026-05-18）
+
+### 🔴 v14.20的4个BUG
+
+| 问题 | 影响 |
+|------|------|
+| 1. Edge ShowRecommendationsEnabled已废弃 | Edge 122+已标记obsolete，是虚假优化 |
+| 2. Opera路径检测遗漏系统级安装 | 只检测用户级安装，漏检系统级 |
+| 3. README末尾版本号仍是v14.10 | 末尾版本号未更新 |
+| 4. zhubi.md底部版本历史矛盾 | 底部大量v14.10残留 |
+
+### ✅ v14.21 修复内容
+
+1. ✅ **Edge ShowRecommendationsEnabled已废弃** - 删除Edge 122+已标记obsolete的策略（第437行）
+2. ✅ **Opera路径检测遗漏系统级安装** - 补充C:\Program Files路径（第91-92行）
+3. ✅ **README末尾版本号仍是v14.10** - 更新末尾版本号到v14.21
+4. ✅ **zhubi.md底部版本历史矛盾** - 清理所有v14.10残留
+
+### ❌ v14.21 拒绝的过度优化
+
+1. ❌ **Firefox AIControls结构无效** - 当前嵌套结构符合Mozilla官方文档
+2. ❌ **Edge WebRtcIPHandlingUrl格式需要验证** - 当前JSON数组格式正确
+3. ❌ **Opera NewTabPageLocation策略无效** - 保留无害
+4. ❌ **Chromium系书签新标签页打开** - 不存在可靠扩展
+5. ❌ **Chromium空白新标签页可能被忽略** - 这是Windows环境限制
+6. ❌ **Chrome/Chromium检测BUG** - 当前逻辑已足够
+7. ❌ **Brave补充2个策略** - 不是必须
+8. ❌ **Opera提示太长太啰嗦** - 当前提示清晰明确
+
+### 📋 审核员反馈
+
+- **2位审核员提出：** 12个问题
+- **主笔采纳：** 4个BUG修复
+- **主笔拒绝：** 8个过度优化/错误建议
+- **采纳率：** 33%（只修复真实BUG，拒绝过度优化）
 
 ---
 
