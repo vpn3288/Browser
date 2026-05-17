@@ -2,16 +2,16 @@
 
 一键优化9个主流浏览器的反检测和隐私保护工具。
 
-**版本：** v13.7 | **状态：** ✅ 生产就绪 | **更新：** 2026-05-08
+**版本：** v14.0 | **状态：** ✅ 实用优先 | **更新：** 2026-05-17
 
 ---
 
 ## 🎯 核心功能
 
-- ✅ **反检测** - WebRTC防护、指纹差异化、消除自动化特征
-- ✅ **极致隐私** - 禁用所有遥测、追踪、广告
+- ✅ **核心反检测** - WebRTC防护、指纹差异化、禁用遥测
+- ✅ **实用优先** - 允许登录、同步、导入书签
+- ✅ **修复CF验证** - 启用安全浏览，解决无限循环问题
 - ✅ **多账号支持** - 每个浏览器独立配置，配合不同IP
-- ✅ **保持登录** - 优化后无需重复登录
 
 **支持浏览器（9个）：**
 - Chromium系：Chrome, Edge, Brave, Opera, Vivaldi, Chromium
@@ -21,65 +21,55 @@
 
 ## 🚀 快速开始
 
-### 一键安装（推荐）
+### 实用版优化（推荐）
 
 以管理员身份打开PowerShell：
 
 ```powershell
-irm https://raw.githubusercontent.com/vpn3288/Browser/main/QUICK_START.ps1 | iex
-```
-
-### 手动安装
-
-```powershell
-# 1. 克隆仓库
+# 克隆仓库
 git clone https://github.com/vpn3288/Browser.git
 cd Browser
 
-# 2. 运行优化
+# 运行实用版优化
 cd scripts\deployment
-.\OPTIMIZE_ALL_v13.7.ps1
-
-# 3. 选择浏览器
-# 输入 A 优化全部，或输入编号（如 0,1,2）优化指定浏览器
+.\PRACTICAL_OPTIMIZE_v14.0.ps1
 ```
 
----
+**v14.0 实用版特点：**
+- ✅ 保留核心反检测功能
+- ✅ 允许登录账号、同步扩展和书签
+- ✅ 允许导入书签、历史、密码
+- ✅ 修复CF验证和甲骨文云访问问题
+- ✅ 启用密码管理器、自动填充、搜索建议
+- ❌ 删除影响使用体验的过度优化
 
-## 🎮 使用启动器
+### 极致版优化（高级用户）
 
-⚠️ **重要：必须使用启动器，不要用原快捷方式**
-
-### 方法1：桌面启动器
-双击桌面上的 `浏览器名 (Anti-Detect)` 图标
-
-### 方法2：批处理脚本
-```batch
-cd C:\Browser\scripts\launch
-Launch_Chrome.bat    # 启动单个
-Launch_All.bat       # 启动全部
-```
-
----
-
-## 📦 安装浏览器
+如果你需要最大化反检测（牺牲部分便利性）：
 
 ```powershell
-# Chromium系
-winget install Google.Chrome
-winget install Microsoft.Edge
-winget install Brave.Brave
-winget install Opera.Opera
-winget install VivaldiTechnologies.Vivaldi
-winget install eloston.ungoogled-chromium
-
-# Firefox系
-winget install Mozilla.Firefox
-winget install LibreWolf.LibreWolf
-
-# Zen Browser（手动下载）
-# https://zen-browser.app/download
+cd scripts\deployment
+.\OPTIMIZE_ALL_v13.7.ps1
 ```
+
+---
+
+## 📊 版本对比
+
+| 功能 | v14.0 实用版 | v13.7 极致版 |
+|------|-------------|-------------|
+| WebRTC防护 | ✅ | ✅ |
+| 指纹保护 | ✅ | ✅ |
+| 禁用遥测 | ✅ | ✅ |
+| 登录账号 | ✅ 允许 | ❌ 禁止 |
+| 导入书签 | ✅ 允许 | ❌ 禁止 |
+| 安全浏览 | ✅ 启用 | ❌ 禁用 |
+| 密码管理 | ✅ 启用 | ⚠️ 部分 |
+| 自动填充 | ✅ 启用 | ❌ 禁用 |
+| 搜索建议 | ✅ 启用 | ❌ 禁用 |
+| CF验证 | ✅ 正常 | ❌ 可能失败 |
+
+**推荐：** 大多数用户使用 **v14.0 实用版**
 
 ---
 
@@ -88,7 +78,7 @@ winget install LibreWolf.LibreWolf
 ### 必装（2个）
 
 1. **uBlock Origin** - 广告/追踪拦截
-2. **WebRTC Leak Prevent** - 防止IP泄露
+2. **WebRTC Leak Prevent** - 防止IP泄露（Chromium已有策略保护）
 
 ### 强烈推荐（2个）
 
@@ -120,67 +110,57 @@ winget install LibreWolf.LibreWolf
 
 ## ⚙️ 优化内容
 
-### Chromium系（50+策略）
+### v14.0 实用版
 
+**保留的核心反检测：**
 - 禁用User-Agent Client Hints
 - WebRTC IP防护（disable_non_proxied_udp）
 - 强制DNS-over-HTTPS
-- 禁用自动化检测特征
-- 禁用所有遥测和数据收集
 - 阻止第三方Cookie
+- 禁用所有遥测和数据收集
+- Firefox指纹保护（resistFingerprinting）
 
-### Firefox系（50个配置）
+**启用的实用功能：**
+- 允许登录账号和同步
+- 允许导入书签、历史、密码
+- 启用安全浏览（修复CF验证）
+- 启用密码管理器
+- 启用自动填充
+- 启用搜索建议和翻译
 
-- 启用resistFingerprinting
-- 完全禁用WebRTC
-- 禁用地理位置和传感器
-- 严格内容拦截模式
-- 禁用遥测和Pocket
-- 强制DNS-over-HTTPS
-
----
-
-## 📊 优化统计
-
-| 浏览器 | 策略数 | 状态 |
-|--------|--------|------|
-| Chrome | 56 | ✅ |
-| Edge | 60 | ✅ |
-| Brave | 57 | ✅ |
-| Opera | 54 | ✅ |
-| Vivaldi | 52 | ✅ |
-| Chromium | 52 | ✅ |
-| Firefox | 50 | ✅ |
-| LibreWolf | 50 | ✅ |
-| Zen Browser | 50 | ✅ |
-
-**验证结果：** 100%真实有效，0个虚假优化
+**删除的过度优化：**
+- SigninAllowed=0（禁止登录）
+- ImportBookmarks=0（禁止导入）
+- SafeBrowsingEnabled=0（导致CF验证失败）
+- 各种影响使用体验的限制
 
 ---
 
-## ⚠️ 重要说明
+## 🆘 常见问题
 
-### Opera手动配置
+**Q: v14.0和v13.7有什么区别？**  
+A: v14.0实用版允许登录、导入、启用安全功能，更适合日常使用。v13.7极致版最大化反检测但牺牲便利性。
 
-访问 `opera://settings` 手动关闭：
-- 启用VPN
-- 在启动页显示新闻
-- Opera Turbo
+**Q: 我应该用哪个版本？**  
+A: 大多数用户推荐v14.0实用版。只有在需要极致反检测时才用v13.7。
 
-### 代理配置
+**Q: 优化后还能登录账号吗？**  
+A: v14.0可以，v13.7不行。
 
-脚本不处理代理，请使用Clash Meta的进程匹配：
+**Q: CF验证无限循环怎么办？**  
+A: 使用v14.0实用版，已启用安全浏览功能。
 
-```yaml
-process-name:
-  - chrome.exe
-  - msedge.exe
-  - brave.exe
-```
+**Q: Chromium无法导入书签？**  
+A: 使用v14.0实用版，已允许导入功能。
 
-### Firefox时区
+**Q: Zen Browser工作栏如何删除？**  
+A: 打开Zen设置 → 外观 → 关闭"工作区"功能。
 
-`resistFingerprinting`会将时区改为UTC，这是故意的反指纹保护。
+**Q: 如何更新？**  
+A: `cd C:\Browser && git pull && cd scripts\deployment && .\PRACTICAL_OPTIMIZE_v14.0.ps1`
+
+**Q: 代理如何配置？**  
+A: 脚本不处理代理，请使用Clash Meta的进程匹配。
 
 ---
 
@@ -190,37 +170,16 @@ process-name:
 Browser/
 ├── scripts/
 │   ├── deployment/
-│   │   └── OPTIMIZE_ALL_v13.7.ps1    # 主优化脚本
+│   │   ├── PRACTICAL_OPTIMIZE_v14.0.ps1  # 实用版（推荐）
+│   │   └── OPTIMIZE_ALL_v13.7.ps1        # 极致版
 │   ├── launch/
-│   │   ├── Launch_Chrome.bat          # BAT启动脚本
-│   │   └── Launch_All.bat             # 批量启动
-│   ├── launchers/
-│   │   └── LAUNCH_*.ps1               # PowerShell启动器
+│   │   ├── Launch_Chrome.bat             # BAT启动脚本
+│   │   └── Launch_All.bat                # 批量启动
 │   └── verification/
-│       └── DEEP_VERIFICATION_v12.4.ps1 # 验证脚本
-├── QUICK_START.ps1                    # 一键安装
-├── zhubi.md                           # 主笔审核意见
-└── README.md                          # 本文件
+│       └── DEEP_VERIFICATION_v12.4.ps1   # 验证脚本
+├── zhubi.md                              # 主笔审核意见
+└── README.md                             # 本文件
 ```
-
----
-
-## 🆘 常见问题
-
-**Q: 优化后浏览器无法启动？**  
-A: 必须使用启动器，不要用原快捷方式。
-
-**Q: 如何更新？**  
-A: `cd C:\Browser && git pull && cd scripts\deployment && .\OPTIMIZE_ALL_v13.7.ps1`
-
-**Q: 可以只优化部分浏览器吗？**  
-A: 可以，运行脚本时选择浏览器编号。
-
-**Q: 如何验证优化生效？**  
-A: 访问 `chrome://policy/` 或 `about:policies`
-
-**Q: Opera的VPN/News如何关闭？**  
-A: 必须手动配置，访问 `opera://settings`
 
 ---
 
@@ -238,5 +197,5 @@ MIT License
 ---
 
 **作者：** Kiro (AI Development Environment)  
-**完成时间：** 2026-05-08  
-**版本：** v13.7
+**完成时间：** 2026-05-17  
+**版本：** v14.0 实用版
