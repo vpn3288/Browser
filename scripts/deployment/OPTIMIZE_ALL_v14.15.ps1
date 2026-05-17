@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.14
+    Multi-Browser Anti-Detect Optimization Tool v14.15
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.14 - 修复3个BUG（Firefox BackgroundAppUpdate、Firefox AI/视觉搜索、Chromium PromotionsEnabled）
+    Version: 14.15 - 修复4个BUG（Edge WebRTC策略、Firefox AI策略、日期不一致、Edge Chrome-only策略）
     Date: 2026-05-18
 #>
 
@@ -318,9 +318,7 @@ function Set-ChromiumAdvancedConfig {
         "SearchSuggestEnabled" = 0
         "AlternateErrorPagesEnabled" = 0
         # v14.12: 删除SafeBrowsingEnabled - Edge不使用此策略，用SmartScreenEnabled
-        "SigninAllowed" = 1  # v14.1: 允许登录
-        # "SyncDisabled" = 1  # v14.1: 删除此项，允许同步
-        "BrowserSignin" = 1  # v14.1: 允许浏览器登录
+        # v14.15: SigninAllowed和BrowserSignin - Edge只用BrowserSignin
         "PasswordManagerEnabled" = 1
         "AutofillAddressEnabled" = 1  # v14.1: 启用自动填充
         "AutofillCreditCardEnabled" = 1  # v14.1: 启用自动填充
@@ -345,21 +343,19 @@ function Set-ChromiumAdvancedConfig {
         "DefaultGeolocationSetting" = 2
         
         # UI/UX
-        "BookmarkBarEnabled" = 1
+        # v14.15: BookmarkBarEnabled - Edge不支持，用FavoritesBarEnabled
         "ShowHomeButton" = 1  # v14.9: 保留主页按钮
         "HomepageLocation" = "about:blank"
         "HomepageIsNewTabPage" = 1  # 主页就是新标签页
         "RestoreOnStartup" = 5  # v14.1: 5 = 打开新标签页（空白页）
         "NewTabPageLocation" = "about:blank"
         "BackgroundModeEnabled" = 0
-        "HideWebStoreIcon" = 1
-        "PromotionalTabsEnabled" = 0
-        "PromotionsEnabled" = 0  # v14.14: 补充新版促销策略
+        # v14.15: HideWebStoreIcon - Edge不支持
         "UserFeedbackAllowed" = 0
         "DefaultBrowserSettingEnabled" = 0
         
         # 高级反检测
-        "UrlKeyedAnonymizedDataCollectionEnabled" = 0
+        # v14.15: UrlKeyedAnonymizedDataCollectionEnabled - Edge不支持
         # v14.9: 删除 - 负优化，牺牲速度
         # v14.9: 删除 - 与DoH冲突
         "PaymentMethodQueryEnabled" = 0
@@ -370,13 +366,25 @@ function Set-ChromiumAdvancedConfig {
         "ImportSavedPasswords" = 1  # v14.1: 允许导入密码
         
         # 隐私沙盒
-        "PrivacySandboxAdMeasurementEnabled" = 0
-        "PrivacySandboxAdTopicsEnabled" = 0
-        "PrivacySandboxSiteEnabledAdsEnabled" = 0
-        "PrivacySandboxPromptEnabled" = 0
+        # v14.15: PrivacySandbox* - Edge不支持
         
         # 性能
         "HardwareAccelerationModeEnabled" = 1
+    }
+    
+    # v14.15: Chrome-only策略（Edge不支持）
+    if ($BrowserKey -ne "Edge") {
+        $policies["SigninAllowed"] = 1  # v14.1: 允许登录
+        $policies["BrowserSignin"] = 1  # v14.1: 允许浏览器登录
+        $policies["BookmarkBarEnabled"] = 1
+        $policies["HideWebStoreIcon"] = 1
+        $policies["PromotionalTabsEnabled"] = 0
+        $policies["PromotionsEnabled"] = 0  # v14.14: 补充新版促销策略
+        $policies["UrlKeyedAnonymizedDataCollectionEnabled"] = 0
+        $policies["PrivacySandboxAdMeasurementEnabled"] = 0
+        $policies["PrivacySandboxAdTopicsEnabled"] = 0
+        $policies["PrivacySandboxSiteEnabledAdsEnabled"] = 0
+        $policies["PrivacySandboxPromptEnabled"] = 0
     }
     
     # 语言设置（差异化）
@@ -408,13 +416,20 @@ function Set-ChromiumAdvancedConfig {
     }
     
     if ($BrowserKey -eq "Edge") {
-        # v14.13: Edge专用WebRTC和安全浏览策略
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"  # v14.13: 补充公网IP防护
+        # v14.15: Edge专用WebRTC策略（删除无效的WebRtcIPHandling，补充WebRtcIPHandlingUrl）
         $policies["WebRtcLocalhostIpHandling"] = "disable_non_proxied_udp"
+        $policies["WebRtcIPHandlingUrl"] = '[{"url":"*","handling":"disable_non_proxied_udp"}]'  # v14.15: Edge 135+官方策略
         $policies["SmartScreenEnabled"] = 1  # v14.12: Edge使用SmartScreen而非SafeBrowsing
         
         # v14.13: Edge专用书签栏策略
         $policies["FavoritesBarEnabled"] = 1  # v14.13: Edge使用FavoritesBar而非BookmarkBar
+        
+        # v14.15: Edge专用策略（删除Chrome-only策略）
+        $policies["BrowserSignin"] = 1  # Edge使用BrowserSignin而非SigninAllowed
+        $policies["TrackingPrevention"] = 2  # v14.15: Edge追踪防护（2=平衡，不用3=严格）
+        $policies["ShowMicrosoftRewards"] = 0  # v14.15: 禁用Microsoft Rewards
+        $policies["MicrosoftEdgeInsiderPromotionEnabled"] = 0  # v14.15: 禁用Insider推广
+        $policies["VisualSearchEnabled"] = 0  # v14.15: 禁用视觉搜索
         
         # Edge特定功能禁用
         $policies["EdgeShoppingAssistantEnabled"] = 0
@@ -595,6 +610,14 @@ function Set-FirefoxAdvancedConfig {
                 MoreFromMozilla = $false  # v14.13: 补充Mozilla推广内容
                 FirefoxLabs = $false  # v14.13: 补充Firefox实验功能推广
             }
+            GenerativeAI = @{  # v14.15: 补充官方GenerativeAI策略
+                Enabled = $false
+                Chatbot = $false
+                LinkPreviews = $false
+                TabGroups = $false
+                Locked = $true
+            }
+            VisualSearchEnabled = $false  # v14.15: 补充官方视觉搜索策略
             Preferences = @{
                 "browser.ml.chat.enabled" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用AI聊天功能
                 "browser.ml.chat.sidebar" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用AI聊天侧边栏
@@ -742,11 +765,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.14" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.15" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
-Write-Host "  日期: 2026-05-17" -ForegroundColor Cyan
-Write-Host "  更新: 修复3个BUG（Firefox BackgroundAppUpdate、Firefox AI/视觉搜索、Chromium PromotionsEnabled）" -ForegroundColor Cyan
+Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
+Write-Host "  更新: 修复4个BUG（Edge WebRTC策略、Firefox GenerativeAI策略、日期不一致、Edge Chrome-only策略）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
