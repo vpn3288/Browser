@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.21
+    Multi-Browser Anti-Detect Optimization Tool v14.22
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.21 - 修复4个BUG（README末尾版本号、zhubi底部版本历史、Edge ShowRecommendationsEnabled废弃、Opera路径检测遗漏）
+    Version: 14.22 - 修复3个BUG（README末尾版本号、zhubi底部版本历史表格、Chrome/Chromium检测漏检）
     Date: 2026-05-18
 #>
 
@@ -107,7 +107,9 @@ $browsers = @{
     "Chromium" = @{
         Name = "Chromium"
         Paths = @(
-            "$userLocalAppData\Chromium\Application\chrome.exe"
+            "$userLocalAppData\Chromium\Application\chrome.exe",
+            "C:\Program Files\Chromium\Application\chrome.exe",           # v14.22: 补充系统级安装路径
+            "C:\Program Files (x86)\Chromium\Application\chrome.exe"      # v14.22: 补充32位系统级安装路径
         )
         RegKey = "HKLM:\SOFTWARE\Policies\Chromium"
         UserDataPath = "$userLocalAppData\Chromium\User Data"
@@ -773,11 +775,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.21" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.22" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复4个BUG（README末尾版本号、zhubi底部版本历史、Edge ShowRecommendationsEnabled废弃、Opera路径检测遗漏）" -ForegroundColor Cyan
+Write-Host "  更新: 修复3个BUG（README末尾版本号、zhubi底部版本历史表格、Chrome/Chromium检测漏检）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
