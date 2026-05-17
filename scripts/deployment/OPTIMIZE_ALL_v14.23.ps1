@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.22
+    Multi-Browser Anti-Detect Optimization Tool v14.23
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.22 - 修复3个BUG（README末尾版本号、zhubi底部版本历史表格、Chrome/Chromium检测漏检）
+    Version: 14.23 - 修复2个BUG（BraveP3AEnabled数据类型错误、Firefox RequestedLocales格式错误）
     Date: 2026-05-18
 #>
 
@@ -414,7 +414,7 @@ function Set-ChromiumAdvancedConfig {
         $policies["BraveAIChatEnabled"] = 0  # v14.3: 禁用AI Chat
         $policies["BraveTalkDisabled"] = 1  # v14.3: 禁用Talk
         # v14.9: 补充Brave官方隐私策略
-        $policies["BraveP3AEnabled"] = "Disabled"  # v14.20: 修复类型（应该用Disabled而非0）
+        $policies["BraveP3AEnabled"] = 0  # v14.23: 修复数据类型（应该用整数0而非字符串"Disabled"）
         $policies["BraveStatsPingEnabled"] = 0
         $policies["BraveWebDiscoveryEnabled"] = 0
     }
@@ -582,7 +582,7 @@ function Set-FirefoxAdvancedConfig {
             ShowHomeButton = $true  # v14.8: 显示主页按钮
             DisableDefaultBrowserAgent = $true  # v14.10: 禁用后台默认浏览器Agent
             BackgroundAppUpdate = $false  # v14.14: 禁用后台更新（不禁用手动更新）
-            RequestedLocales = $lang  # v14.11: 补充官方语言策略
+            RequestedLocales = @($lang)  # v14.23: 修复格式（应该是数组而非字符串）
             # DisableFirefoxAccounts = $true  # v14.1: 删除此项，允许登录
             DisableFormHistory = $false  # v14.1: 允许表单历史
             OfferToSaveLogins = $true
@@ -775,11 +775,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.22" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.23" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复3个BUG（README末尾版本号、zhubi底部版本历史表格、Chrome/Chromium检测漏检）" -ForegroundColor Cyan
+Write-Host "  更新: 修复2个BUG（BraveP3AEnabled数据类型错误、Firefox RequestedLocales格式错误）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
