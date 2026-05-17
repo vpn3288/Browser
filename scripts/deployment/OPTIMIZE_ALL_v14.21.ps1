@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.20
+    Multi-Browser Anti-Detect Optimization Tool v14.21
 .DESCRIPTION
     Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
     Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
 .NOTES
     Author: Kiro (AI Development Environment)
-    Version: 14.20 - 修复3个BUG（README末尾版本号、Edge EdgeWalletEnabled废弃、BraveP3AEnabled类型错误）
+    Version: 14.21 - 修复4个BUG（README末尾版本号、zhubi底部版本历史、Edge ShowRecommendationsEnabled废弃、Opera路径检测遗漏）
     Date: 2026-05-18
 #>
 
@@ -87,7 +87,9 @@ $browsers = @{
     "Opera" = @{
         Name = "Opera"
         Paths = @(
-            "$userLocalAppData\Programs\Opera\opera.exe"
+            "$userLocalAppData\Programs\Opera\opera.exe",
+            "C:\Program Files\Opera\opera.exe",           # v14.21: 补充系统级安装路径
+            "C:\Program Files (x86)\Opera\opera.exe"      # v14.21: 补充32位系统级安装路径
         )
         RegKey = "HKLM:\SOFTWARE\Policies\Opera Software\Opera Stable"
         UserDataPath = "$env:APPDATA\Opera Software\Opera Stable"
@@ -434,7 +436,7 @@ function Set-ChromiumAdvancedConfig {
         # Edge特定功能禁用
         $policies["EdgeShoppingAssistantEnabled"] = 0
         $policies["EdgeCollectionsEnabled"] = 0
-        $policies["ShowRecommendationsEnabled"] = 0
+        # v14.21: 删除ShowRecommendationsEnabled（Edge 122+已标记obsolete，虚假优化）
         $policies["ConfigureDoNotTrack"] = 1
         # v14.17: 删除EdgeEnhanceImagesEnabled（Edge 122+已移除，虚假优化）
         # v14.19: 真正删除EdgeDiscoverEnabled（Edge 97-105专用，已obsolete，虚假优化）
@@ -771,11 +773,11 @@ user_pref("privacy.donottrackheader.enabled", true);
 
 # ===== 主流程 =====
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.20" -ForegroundColor Green
+Write-Host "  多浏览器反检测优化工具 v14.21" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
 Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复3个BUG（README末尾版本号、Edge EdgeWalletEnabled废弃、BraveP3AEnabled类型错误）" -ForegroundColor Cyan
+Write-Host "  更新: 修复4个BUG（README末尾版本号、zhubi底部版本历史、Edge ShowRecommendationsEnabled废弃、Opera路径检测遗漏）" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Log "优化日志保存至: $logFile" "INFO"
