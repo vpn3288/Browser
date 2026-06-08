@@ -1,4 +1,30 @@
-# 主笔审核意见表 - Multi-Browser Anti-Detect
+# 当前主笔结论 - Multi-Browser Clean Optimizer
+
+更新日期：2026-06-09
+
+当前脚本目标已经调整为浏览器清洁、隐私、安全、稳定和扩展策略正确性优化。后续维护只应围绕官方策略、可验证 Profile 偏好、浏览器真实功能和不过度优化展开。
+
+已明确移除或不再采用的方向：
+
+- 不做反检测、流量伪装、账号风控规避或虚假指纹差异化。
+- 不增加启动器。
+- 不强制接管 DoH 到第三方服务，避免绕过本机网络栈造成不稳定。
+- 不关闭翻译、登录、同步、密码管理、自动填充、安全浏览和硬件加速这类正常使用能力。
+- 不给 Opera 伪造未公开支持的 Chrome/Edge 风格 Windows 企业策略。
+- 不把扩展示例条目当成真实扩展强制安装；扩展只从 `config/extensions.json` 读取显式启用且格式有效的条目。
+
+当前入口：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1
+```
+
+以下内容是历史审核记录，仅作为追溯材料；如与当前 README、脚本和 `docs/official-sources.md` 冲突，以当前脚本和官方文档为准。
+
+---
+
+# 历史主笔审核意见表 - Multi-Browser Anti-Detect
 
 **主笔：** Kiro (AI Development Environment)  
 **最后更新：** 2026-05-18 v14.25（🎯 修复1个BUG - 最终封笔）  

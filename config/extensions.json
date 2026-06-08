@@ -1,0 +1,40 @@
+{
+  "chromium_web_store": [
+    {
+      "name": "Example Chrome Web Store extension",
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "enabled": false,
+      "browsers": [
+        "Chrome",
+        "Chromium",
+        "Brave",
+        "Vivaldi"
+      ],
+      "update_url": "https://clients2.google.com/service/update2/crx"
+    }
+  ],
+  "edge_addons": [
+    {
+      "name": "Example Microsoft Edge Add-ons extension",
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "enabled": false,
+      "browsers": [
+        "Edge"
+      ],
+      "update_url": "https://edge.microsoft.com/extensionwebstorebase/v1/crx"
+    }
+  ],
+  "firefox_addons": [
+    {
+      "name": "Example Firefox Add-ons extension",
+      "id": "example@example.invalid",
+      "enabled": false,
+      "browsers": [
+        "Firefox",
+        "LibreWolf",
+        "Zen"
+      ],
+      "install_url": "https://addons.mozilla.org/firefox/downloads/latest/example/latest.xpi"
+    }
+  ]
+}

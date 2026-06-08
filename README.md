@@ -1,252 +1,117 @@
-# 🌐 Multi-Browser Anti-Detect
+# Multi-Browser Clean Optimizer
 
-一键优化9个主流浏览器的反检测和隐私保护工具。
+Windows 11 多浏览器清洁、隐私、安全和稳定性优化脚本。
 
-**版本：** v14.25 | **状态：** ✅ 修复1个BUG版（最终封笔） | **更新：** 2026-05-18
+支持 9 个浏览器：
 
----
+- Google Chrome
+- Chromium
+- Microsoft Edge
+- Brave
+- Opera
+- Vivaldi
+- Mozilla Firefox
+- LibreWolf
+- Zen Browser
 
-## 🎯 核心功能
+本项目只优化浏览器本身：关闭新闻、广告、促销、遥测、默认浏览器提示、后台运行和不必要的厂商功能；默认打开书签栏；主页和启动页设为 `about:blank`；修正扩展强制安装策略。脚本不增加启动器，也不处理代理、账号风控、流量伪装或绕过平台检测。
 
-- ✅ **修复1个BUG** - v14.25修复$userLocalAppData硬编码路径
-- ✅ **环境变量路径** - 使用$env:LOCALAPPDATA支持非标准用户目录
-- ✅ **管理员提升兼容** - 支持管理员提升运行时正确检测浏览器
-- ✅ **核心反检测** - WebRTC防护、禁用遥测、阻止追踪
-- ✅ **实用优先** - 允许登录、同步、导入书签
-- ✅ **不依赖启动器** - 完全删除启动器，直接优化浏览器本身
-- ✅ **中文界面** - 所有浏览器使用中文（简繁混合）
-- ✅ **空白主页** - 新标签页和主页都是about:blank
-- ✅ **书签栏默认打开** - 所有浏览器默认显示书签栏
-- ✅ **禁止后台运行** - 关闭浏览器后完全退出
+## 快速开始
 
----
-
-## 🚀 快速开始
-
-### 一键优化（推荐）
-
-以管理员身份打开PowerShell：
+以管理员身份打开 PowerShell，在仓库根目录运行：
 
 ```powershell
-# 克隆仓库
-git clone https://github.com/vpn3288/Browser.git
-cd Browser
-
-# 运行v14.25最终版
-cd scripts\deployment
-.\OPTIMIZE_ALL_v14.25.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1
 ```
 
-### 选择浏览器
+先看将要做什么，不写注册表、不改配置文件：
 
-运行脚本后会显示已安装的浏览器，选择要优化的浏览器即可。
-
-**优化完成后，直接使用浏览器原生快捷方式启动，不需要任何启动器。**
-
-**⚠️ Firefox系浏览器（Firefox/LibreWolf/Zen）需要重启后配置才会生效。**
-
----
-
-## ✅ v14.25 修复1个BUG版特点
-
-### v14.24的1个BUG
-
-| 问题 | 影响 |
-|------|------|
-| 1. $userLocalAppData硬编码路径 | 非标准用户目录、管理员提升运行时会漏检 |
-
-### v14.25 修复内容
-
-#### 🔧 修复1个BUG
-
-1. ✅ **$userLocalAppData硬编码路径** - 改用$env:LOCALAPPDATA环境变量（第55行）
-
-#### 🗑️ 删除1个旧版本
-
-- scripts/deployment/OPTIMIZE_ALL_v14.24.ps1（有1个BUG）
-
-#### 📋 审核员反馈采纳
-
-**1位审核员提出4个问题 → 主笔采纳2个BUG修复 → 拒绝2个错误建议**
-
-**采纳率：2/4（50%）- 只修复真实BUG，拒绝错误建议**
-
-### 保留的核心反检测
-
-- WebRTC IP防护（所有Chromium系，包括Edge）
-- 禁用所有遥测和数据收集
-- 阻止第三方Cookie
-- DNS-over-HTTPS（automatic模式）
-- 禁用后台运行
-- 禁用默认浏览器弹窗
-- 厂商私货屏蔽（Edge/Brave特定功能）
-- 禁用QUIC（所有Chromium系，稳定过墙）
-- 保留主页按钮（所有浏览器）
-- Brave官方隐私策略
-- Firefox广告/促销完整关闭
-- Firefox后台Agent禁用
-- Firefox AIControls完整（Mozilla官方AI总控）
-
-### 启用的实用功能
-
-- 允许登录账号和同步
-- 允许导入书签、历史、密码
-- 启用安全浏览（修复CF验证）
-- 启用密码管理器和自动填充
-
----
-
-## 🔌 推荐扩展（最多3个）
-
-### 必装扩展（2个）
-
-1. **uBlock Origin Lite** (Chromium系)
-   - Chrome/Edge/Brave/Vivaldi/Chromium
-   - 广告/追踪拦截（Manifest V3）
-
-2. **uBlock Origin** (Firefox系 + Opera)
-   - Firefox/LibreWolf/Zen/Opera
-   - 广告/追踪拦截（经典版）
-   - ⚠️ Opera必须从addons.opera.com安装
-
-### 推荐扩展（可选1个）
-
-3. **ClearURLs** (仅Firefox系)
-   - 移除URL追踪参数
-   - ⚠️ Chromium系不推荐（商店环境不稳定）
-
-### ❌ 不推荐
-
-- ❌ **Open Bookmark in New Tab** - 会修改书签URL
-- ❌ **Cookie AutoDelete** - 与"保持登录"冲突
-- ❌ **Random User-Agent** - 容易被检测为假
-- ❌ **CanvasBlocker** - 破坏网站功能
-
-**总计：最多3个扩展（2个必装 + 1个可选），符合"不过度优化"原则**
-
-**详细扩展安装指南：** 查看 [zhubi.md](./zhubi.md)
-
----
-
-## 🔍 验证优化
-
-### 检查策略
-
-**Chromium系：** `chrome://policy/` `edge://policy/` `brave://policy/`  
-**Firefox系：** `about:policies`
-
-### 验证清单
-
-- [ ] 可以登录账号
-- [ ] 可以导入书签
-- [ ] CF验证正常通过
-- [ ] 甲骨文云正常访问
-- [ ] WebRTC IP不泄露（包括Edge）
-- [ ] 浏览器语言为中文（简体或繁体）
-- [ ] 主页按钮可见
-- [ ] 菜单顺序固定
-- [ ] 无旧文件残留
-- [ ] Firefox系重启后配置生效
-- [ ] Firefox无赞助内容（常用网站、Pocket、Stories、Suggest）
-
-### 在线检测
-
-- WebRTC泄露：https://browserleaks.com/webrtc
-- Canvas指纹：https://browserleaks.com/canvas
-- 浏览器指纹：https://coveryourtracks.eff.org/
-- IP检测：https://ipleak.net/
-
----
-
-## 📊 版本对比
-
-| 功能 | v14.24 | v14.25 |
-|------|--------|--------|
-| 核心反检测 | ✅ | ✅ |
-| $userLocalAppData路径 | ❌ 硬编码路径 | ✅ 使用环境变量 |
-| 非标准用户目录支持 | ❌ 不支持 | ✅ 支持 |
-| 管理员提升运行支持 | ❌ 可能漏检 | ✅ 正确检测 |
-| 旧版本文件 | ❌ 存在 | ✅ 已删除1个 |
-
-**推荐：** 使用 **v14.25 修复1个BUG版**
-
----
-
-## 🆘 常见问题
-
-**Q: v14.25和v14.24有什么区别？**  
-A: v14.25修复了1个BUG：$userLocalAppData硬编码路径，改用$env:LOCALAPPDATA环境变量。
-
-**Q: 为什么要用$env:LOCALAPPDATA？**  
-A: 硬编码路径在非标准用户目录、管理员提升运行时会漏检浏览器。
-
-**Q: 优化后还能登录账号吗？**  
-A: 可以！v14.25允许登录和同步。
-
-**Q: CF验证无限循环怎么办？**  
-A: v14.25已修复，启用了安全浏览功能。
-
-**Q: 如何验证优化生效？**  
-A: 访问 `chrome://policy/` 或 `about:policies`
-
-**Q: 如何更新到最新版？**  
-A: `cd C:\\Browser && git pull && cd scripts\\deployment && .\\OPTIMIZE_ALL_v14.25.ps1`
-
-**Q: 代理如何配置？**  
-A: 脚本不处理代理，请使用Clash Meta的进程匹配。
-
----
-
-## 📁 项目结构
-
-```
-Browser/
-├── scripts/
-│   ├── deployment/
-│   │   └── OPTIMIZE_ALL_v14.25.ps1   # 最终版（推荐）
-│   └── verification/
-│       └── (空目录)
-├── zhubi.md                           # 主笔审核意见（重要）
-└── README.md                          # 本文件
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1 -DryRun
 ```
 
----
+只读取当前优化状态：
 
-## 📖 文档
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1
+```
 
-- **主笔审核意见：** [zhubi.md](./zhubi.md) - 包含扩展推荐、技术细节、审核员反馈采纳记录
-- **GitHub仓库：** https://github.com/vpn3288/Browser
+管理员级严格验证 HKLM 机器策略：
 
----
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy
+```
 
-## 🎊 最终封笔声明
+## 参数
 
-v14.25 已达成所有目标：
+- `-DryRun`：只预览，不写入。
+- `-UserOnly`：只写当前用户策略和用户配置，不写 HKLM。
+- `-OnlyInstalled`：只处理检测到已安装的浏览器。
+- `-ApplyProfilePreferences:$false`：只写官方策略，跳过直接编辑 Profile 偏好文件。
+- `-ExtensionConfigPath <path>`：使用自定义扩展配置文件。
 
-- ✅ 9个浏览器全部优化完成
-- ✅ 所有关键问题已修复
-- ✅ 所有路径检测已修正（使用环境变量）
-- ✅ 支持非标准用户目录和管理员提升运行
-- ✅ 核心反检测保留
-- ✅ 使用体验优秀
-- ✅ 只修复BUG，拒绝过度优化
-- ✅ 100%符合用户要求"不虚假优化、不负优化、不画蛇添足"
+脚本在管理员 PowerShell 中会自动写 HKLM 机器策略；非管理员 PowerShell 中会跳过 HKLM，并尽量写 HKCU 和用户配置。
+如果 Windows 权限拒绝写入 `HKCU\SOFTWARE\Policies`，请在管理员 PowerShell 里重新运行优化脚本。
 
-**v14.1 → v14.25总结：**
+## 优化内容
 
-- **总版本数：** 25个版本
-- **总问题数：** 180个
-- **总采纳数：** 100个
-- **总采纳率：** 56%
-- **修复BUG：** 69个
-- **删除虚假优化：** 16个
-- **删除旧文件：** 92个
+Chromium 系浏览器：
 
-**用户现在可以运行v14.25脚本，所有9个浏览器都将得到完美优化！**
- - ✅ Firefox user.js重启提示已添加（v14.9）
- - ✅ Firefox广告/促销已完整关闭（v14.10）
- - ✅ Firefox后台Agent已禁用（v14.10）
+- 显示书签栏和主页按钮。
+- 主页、新标签页和启动页设置为 `about:blank`。
+- 关闭后台运行、默认浏览器提示、促销页、搜索建议、Privacy Sandbox 广告功能、遥测和反馈。
+- 关闭 DoH 和 QUIC，避免绕过系统/本机网络栈造成不稳定。
+- 保留安全浏览、硬件加速、登录、同步、密码管理、自动填充和翻译能力。
+- Edge、Brave、Vivaldi 按品牌追加关闭首启体验、侧边栏、购物、奖励、新闻、钱包、VPN、Talk、P3A、Web Discovery 等功能。
 
----
+Firefox 系浏览器：
 
-**版本：** v14.25 | **最后更新：** 2026-05-18 | **作者：** Kiro (AI Development Environment)
+- 写入 `distribution\policies.json`。
+- 显示书签栏，主页和新标签页为空白。
+- 关闭 Telemetry、Studies、Pocket、默认浏览器 Agent、赞助内容、Firefox Suggest 和用户消息推荐。
+- 开启增强跟踪保护、加密挖矿/指纹跟踪防护。
+- 保留登录、密码管理、表单历史、硬件加速和翻译能力。
+- 书签点击通过官方偏好配置为在新的前台标签页打开。
+
+Opera：
+
+- Opera 没有公开与 Chrome/Edge 完全一致的 Windows 企业策略面，所以脚本不伪造 Opera 注册表策略。
+- 通过可观察的 Profile 偏好关闭个性化广告/内容、后台模式，并设置书签栏、主页和启动页。
+
+## 扩展配置
+
+扩展强制安装只读取 [config/extensions.json](./config/extensions.json)。
+
+默认示例扩展全部是 `enabled: false`，不会强制安装任何扩展。需要安装时，先填入真实扩展 ID、正确 update URL 或 XPI 安装 URL，再把对应条目改为 `enabled: true`。
+
+Chromium Web Store：
+
+```text
+https://clients2.google.com/service/update2/crx
+```
+
+Microsoft Edge Add-ons：
+
+```text
+https://edge.microsoft.com/extensionwebstorebase/v1/crx
+```
+
+Firefox 系：
+
+```text
+https://addons.mozilla.org/firefox/downloads/latest/<addon>/latest.xpi
+```
+
+## 已知限制
+
+- Chromium 系浏览器没有官方策略可以强制原生书签栏左键点击在新的前台标签页打开。脚本会明确报告这个限制，不会假装已实现。
+- Chrome 的 `NewTabPageLocation=about:blank` 在某些非托管 Windows 环境可能被忽略，需要在 `chrome://policy` 里确认。
+- 正在运行的浏览器 Profile 文件不会被直接编辑，请关闭浏览器后重新运行。
+- 如果现有 `Preferences` 或 `Local State` JSON 已损坏，脚本会跳过该文件，避免覆盖原有状态。
+- Codex 当前进程如果不是管理员，就不能自动控制已经打开的管理员 PowerShell 窗口；需要在管理员窗口里直接运行上面的命令。
+
+## 官方依据
+
+见 [docs/official-sources.md](./docs/official-sources.md)。
+
+排错见 [docs/troubleshooting.md](./docs/troubleshooting.md)。

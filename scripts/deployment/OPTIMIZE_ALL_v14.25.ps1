@@ -1,857 +1,1053 @@
-#Requires -RunAsAdministrator
-
 <#
 .SYNOPSIS
-    Multi-Browser Anti-Detect Optimization Tool v14.25
+    Multi-browser clean, privacy, and stability optimizer for Windows.
 .DESCRIPTION
-    Automatically detect and optimize 9 browsers with advanced anti-detection configurations.
-    Supports: Chrome, Edge, Brave, Opera, Vivaldi, Chromium, Firefox, LibreWolf, Zen Browser
-.NOTES
-    Author: Kiro (AI Development Environment)
-    Version: 14.25 - 修复1个BUG（$userLocalAppData硬编码路径）
-    Date: 2026-05-18
+    Applies official browser policies and profile preferences for Chrome, Chromium,
+    Edge, Brave, Opera, Vivaldi, Firefox, LibreWolf, and Zen Browser.
+
+    This script intentionally avoids traffic-evasion or fake fingerprint behavior.
+    It focuses on clean UI, privacy, extension policy correctness, blank home/start
+    pages, disabled background mode, and reduced promotional/telemetry surfaces.
 #>
 
-$ErrorActionPreference = "Continue"
-$ProgressPreference = "SilentlyContinue"
+[CmdletBinding()]
+param(
+    [switch]$DryRun,
+    [switch]$Machine,
+    [switch]$UserOnly,
+    [bool]$ApplyProfilePreferences = $true,
+    [string]$ExtensionConfigPath,
+    [switch]$OnlyInstalled
+)
 
-# ===== 配置区域 =====
-$languageConfig = @{
-    "Chrome" = "zh-CN"
-    "Edge" = "zh-CN"
-    "Brave" = "zh-TW"
-    "Opera" = "zh-TW"
-    "Vivaldi" = "zh-CN"
-    "Chromium" = "zh-TW"
-    "Firefox" = "zh-CN"
-    "LibreWolf" = "zh-TW"
-    "Zen Browser" = "zh-CN"  # v14.9: 修正为单个locale
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$RepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+
+if ([string]::IsNullOrWhiteSpace($ExtensionConfigPath)) {
+    $ExtensionConfigPath = Join-Path $RepoRoot 'config\extensions.json'
 }
 
-# ===== 日志系统 =====
-$logFile = "$PSScriptRoot\optimization_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+$Script:Changes = New-Object System.Collections.Generic.List[string]
+$Script:Warnings = New-Object System.Collections.Generic.List[string]
+$Script:DeniedRegistryPaths = @{}
 
-function Write-Log {
-    param(
-        [string]$Message,
-        [string]$Level = "INFO"
-    )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logMessage = "[$timestamp] [$Level] $Message"
-    
-    switch ($Level) {
-        "SUCCESS" { Write-Host $logMessage -ForegroundColor Green }
-        "ERROR"   { Write-Host $logMessage -ForegroundColor Red }
-        "WARNING" { Write-Host $logMessage -ForegroundColor Yellow }
-        "HEADER"  { Write-Host "`n$logMessage" -ForegroundColor Cyan }
-        default   { Write-Host $logMessage -ForegroundColor White }
-    }
-    
-    Add-Content -Path $logFile -Value $logMessage -ErrorAction SilentlyContinue
+function Write-Info {
+    param([string]$Message)
+    Write-Host "[INFO] $Message"
 }
 
-# ===== 浏览器配置 =====
-$currentUser = $env:USERNAME
-$userLocalAppData = $env:LOCALAPPDATA  # v14.25: 修复硬编码路径（使用环境变量）
-
-$browsers = @{
-    "Chrome" = @{
-        Name = "Google Chrome"
-        Paths = @(
-            "C:\Program Files\Google\Chrome\Application\chrome.exe",
-            "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
-        )
-        RegKey = "HKLM:\SOFTWARE\Policies\Google\Chrome"
-        UserDataPath = "$userLocalAppData\Google\Chrome\User Data"
-        Type = "Chromium"
-    }
-    "Edge" = @{
-        Name = "Microsoft Edge"
-        Paths = @(
-            "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-            "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
-        )
-        RegKey = "HKLM:\SOFTWARE\Policies\Microsoft\Edge"
-        UserDataPath = "$userLocalAppData\Microsoft\Edge\User Data"
-        Type = "Chromium"
-    }
-    "Brave" = @{
-        Name = "Brave Browser"
-        Paths = @(
-            "$userLocalAppData\BraveSoftware\Brave-Browser\Application\brave.exe"
-        )
-        RegKey = "HKLM:\SOFTWARE\Policies\BraveSoftware\Brave"
-        UserDataPath = "$userLocalAppData\BraveSoftware\Brave-Browser\User Data"
-        Type = "Chromium"
-    }
-    "Opera" = @{
-        Name = "Opera"
-        Paths = @(
-            "$userLocalAppData\Programs\Opera\opera.exe",
-            "C:\Program Files\Opera\opera.exe",           # v14.21: 补充系统级安装路径
-            "C:\Program Files (x86)\Opera\opera.exe"      # v14.21: 补充32位系统级安装路径
-        )
-        RegKey = "HKLM:\SOFTWARE\Policies\Opera Software\Opera Stable"
-        UserDataPath = "$env:APPDATA\Opera Software\Opera Stable"
-        Type = "Chromium"
-    }
-    "Vivaldi" = @{
-        Name = "Vivaldi"
-        Paths = @(
-            "$userLocalAppData\Vivaldi\Application\vivaldi.exe"
-        )
-        RegKey = "HKLM:\SOFTWARE\Policies\Vivaldi"
-        UserDataPath = "$userLocalAppData\Vivaldi\User Data"
-        Type = "Chromium"
-    }
-    "Chromium" = @{
-        Name = "Chromium"
-        Paths = @(
-            "$userLocalAppData\Chromium\Application\chrome.exe",
-            "C:\Program Files\Chromium\Application\chrome.exe",           # v14.22: 补充系统级安装路径
-            "C:\Program Files (x86)\Chromium\Application\chrome.exe"      # v14.22: 补充32位系统级安装路径
-        )
-        RegKey = "HKLM:\SOFTWARE\Policies\Chromium"
-        UserDataPath = "$userLocalAppData\Chromium\User Data"
-        Type = "Chromium"
-    }
-    "Firefox" = @{
-        Name = "Mozilla Firefox"
-        Paths = @(
-            "C:\Program Files\Mozilla Firefox\firefox.exe",
-            "C:\Program Files (x86)\Mozilla Firefox\firefox.exe"
-        )
-        Type = "Firefox"
-    }
-    "LibreWolf" = @{
-        Name = "LibreWolf"
-        Paths = @(
-            "C:\Program Files\LibreWolf\librewolf.exe"
-        )
-        Type = "Firefox"
-    }
-    "Zen Browser" = @{
-        Name = "Zen Browser"
-        Paths = @(
-            "C:\Program Files\Zen Browser\zen.exe",
-            "$userLocalAppData\Zen\zen.exe",
-            "$userLocalAppData\Zen-Browser\zen.exe",
-            "$userLocalAppData\Zen Browser\zen.exe",
-            "C:\Program Files\Zen\zen.exe",
-            "C:\Program Files\Zen-Browser\zen.exe"
-        )
-        Type = "Firefox"
-    }
+function Write-Change {
+    param([string]$Message)
+    $Script:Changes.Add($Message) | Out-Null
+    Write-Host "[CHANGE] $Message"
 }
 
-# ===== 增强浏览器检测 =====
-function Get-InstalledBrowsers {
-    Write-Log "开始检测已安装的浏览器..." "HEADER"
-    $detected = @{}
-    
-    foreach ($key in $browsers.Keys) {
-        $browser = $browsers[$key]
-        $foundPath = $null
-        
-        # 方法1: 检测预定义路径
-        foreach ($path in $browser.Paths) {
-            if (Test-Path $path) {
-                $foundPath = $path
-                Write-Log "$($browser.Name) - 路径检测成功: $path" "SUCCESS"
-                break
-            }
-        }
-        
-        # 方法2: 注册表 App Paths 检测
-        if (-not $foundPath) {
-            $exeName = switch ($key) {
-                "Chrome" { "chrome.exe" }
-                "Edge" { "msedge.exe" }
-                "Firefox" { "firefox.exe" }
-                "Brave" { "brave.exe" }
-                "Opera" { "opera.exe" }
-                "Vivaldi" { "vivaldi.exe" }
-                "Chromium" { "chrome.exe" }
-                "LibreWolf" { "librewolf.exe" }
-                "Zen Browser" { "zen.exe" }
-            }
-            
-            $regPaths = @(
-                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exeName",
-                "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exeName"
-            )
-            
-            foreach ($regPath in $regPaths) {
-                if (Test-Path $regPath) {
-                    $regValue = (Get-ItemProperty -Path $regPath -Name "(Default)" -ErrorAction SilentlyContinue).'(Default)'
-                    if ($regValue -and (Test-Path $regValue)) {
-                        $foundPath = $regValue
-                        Write-Log "$($browser.Name) - 注册表检测成功: $foundPath" "SUCCESS"
-                        break
-                    }
-                }
-            }
-        }
-        
-        # 方法3: 通过 Get-Command 检测 PATH 环境变量
-        if (-not $foundPath) {
-            $exeName = switch ($key) {
-                "Chrome" { "chrome" }
-                "Edge" { "msedge" }
-                "Firefox" { "firefox" }
-                "Brave" { "brave" }
-                "Opera" { "opera" }
-                "Vivaldi" { "vivaldi" }
-                "Chromium" { "chrome" }
-                "LibreWolf" { "librewolf" }
-                "Zen Browser" { "zen" }
-            }
-            
-            $cmd = Get-Command $exeName -ErrorAction SilentlyContinue
-            if ($cmd -and $cmd.Source) {
-                $foundPath = $cmd.Source
-                Write-Log "$($browser.Name) - PATH检测成功: $foundPath" "SUCCESS"
-            }
-        }
-        
-        # 方法4: 扫描常见安装目录
-        if (-not $foundPath) {
-            $searchDirs = @(
-                "C:\Program Files",
-                "C:\Program Files (x86)",
-                "$env:LOCALAPPDATA",
-                "$env:APPDATA"
-            )
-            
-            $exeName = switch ($key) {
-                "Chrome" { "chrome.exe" }
-                "Edge" { "msedge.exe" }
-                "Firefox" { "firefox.exe" }
-                "Brave" { "brave.exe" }
-                "Opera" { "opera.exe" }
-                "Vivaldi" { "vivaldi.exe" }
-                "Chromium" { "chrome.exe" }
-                "LibreWolf" { "librewolf.exe" }
-                "Zen Browser" { "zen.exe" }
-            }
-            
-            foreach ($dir in $searchDirs) {
-                if (Test-Path $dir) {
-                    $found = Get-ChildItem -Path $dir -Filter $exeName -Recurse -ErrorAction SilentlyContinue -Depth 3 | Select-Object -First 1
-                    if ($found) {
-                        $foundPath = $found.FullName
-                        Write-Log "$($browser.Name) - 目录扫描成功: $foundPath" "SUCCESS"
-                        break
-                    }
-                }
-            }
-        }
-        
-        # v14.12: Chrome/Chromium互相区分 - 用ProductName验证
-        if ($foundPath -and ($key -eq "Chrome" -or $key -eq "Chromium")) {
-            try {
-                $versionInfo = (Get-Item $foundPath).VersionInfo
-                $productName = $versionInfo.ProductName
-                
-                if ($key -eq "Chrome" -and $productName -notlike "*Google Chrome*") {
-                    Write-Log "$($browser.Name) - ProductName不匹配（$productName），跳过" "WARNING"
-                    $foundPath = $null
-                } elseif ($key -eq "Chromium" -and $productName -notlike "*Chromium*") {
-                    Write-Log "$($browser.Name) - ProductName不匹配（$productName），跳过" "WARNING"
-                    $foundPath = $null
-                }
-            } catch {
-                # 如果无法读取VersionInfo，用路径判断
-                if ($key -eq "Chromium" -and $foundPath -notlike "*\Chromium\*") {
-                    Write-Log "$($browser.Name) - 路径不包含Chromium，跳过（可能是Chrome）" "WARNING"
-                    $foundPath = $null
-                } elseif ($key -eq "Chrome" -and $foundPath -like "*\Chromium\*") {
-                    Write-Log "$($browser.Name) - 路径包含Chromium，跳过（可能是Chromium）" "WARNING"
-                    $foundPath = $null
-                }
-            }
-        }
-        
-        # 如果找到了浏览器，添加到检测列表
-        if ($foundPath) {
-            $detected[$key] = $browser.Clone()
-            $detected[$key].ExePath = $foundPath
-            $detected[$key].InstallDir = Split-Path $foundPath -Parent
-        }
-    }
-    
-    if ($detected.Count -eq 0) {
-        Write-Log "未检测到任何支持的浏览器！" "ERROR"
-        exit 1
-    }
-    
-    Write-Log "共检测到 $($detected.Count) 个浏览器" "SUCCESS"
-    return $detected
+function Write-Warn {
+    param([string]$Message)
+    $Script:Warnings.Add($Message) | Out-Null
+    Write-Warning $Message
 }
 
-# ===== Chromium 高级反检测配置 =====
-function Set-ChromiumAdvancedConfig {
-    param(
-        [string]$BrowserKey,
-        [hashtable]$BrowserInfo
-    )
-    
-    $regPath = $BrowserInfo.RegKey
-    $browserName = $BrowserInfo.Name
-    
-    Write-Log "优化 $browserName..." "HEADER"
-    
-    # v14.3: 删除清理Session文件逻辑（不必要，且可能影响网页状态）
-    
-    # 创建注册表键
-    if (-not (Test-Path $regPath)) {
-        try {
-            New-Item -Path $regPath -Force | Out-Null
-            Write-Log "创建注册表键: $regPath" "SUCCESS"
-        } catch {
-            Write-Log "创建注册表键失败: $_" "ERROR"
-            return
-        }
-    }
-    
-    # 核心策略
-    $policies = @{
-        # 隐私保护
-        "MetricsReportingEnabled" = 0
-        "SpellcheckEnabled" = 0
-        "SearchSuggestEnabled" = 0
-        "AlternateErrorPagesEnabled" = 0
-        # v14.12: 删除SafeBrowsingEnabled - Edge不使用此策略，用SmartScreenEnabled
-        # v14.15: SigninAllowed和BrowserSignin - Edge只用BrowserSignin
-        "PasswordManagerEnabled" = 1
-        "AutofillAddressEnabled" = 1  # v14.1: 启用自动填充
-        "AutofillCreditCardEnabled" = 1  # v14.1: 启用自动填充
-        
-        # 反检测核心
-        # v14.9: 删除 - 虚假优化，暴露浏览器被修改
-        # v14.9: 删除 - 虚假优化，暴露浏览器被修改
-        # v14.9: WebRTC策略 - Edge使用专用策略名
-        "WebRtcEventLogCollectionAllowed" = 0
-        "QuicAllowed" = 0  # v14.9: 禁用QUIC（所有Chromium系）
-        "EnableMediaRouter" = 0  # v14.11: 禁用Cast/媒体路由（所有Chromium系）
-        
-        # DNS-over-HTTPS
-        "DnsOverHttpsMode" = "automatic"  # v14.2: automatic模式（有fallback，更稳定）
-        "DnsOverHttpsTemplates" = "https://cloudflare-dns.com/dns-query"
-        
-        # 安全
-        # "SSLErrorOverrideAllowed" = 1  # v14.3: 删除，不应允许绕过SSL警告
-        "BlockThirdPartyCookies" = 1
-        "DefaultCookiesSetting" = 1
-        "DefaultNotificationsSetting" = 2
-        "DefaultGeolocationSetting" = 2
-        
-        # UI/UX
-        # v14.15: BookmarkBarEnabled - Edge不支持，用FavoritesBarEnabled
-        "ShowHomeButton" = 1  # v14.9: 保留主页按钮
-        "HomepageLocation" = "about:blank"
-        "HomepageIsNewTabPage" = 1  # 主页就是新标签页
-        "RestoreOnStartup" = 5  # v14.1: 5 = 打开新标签页（空白页）
-        "NewTabPageLocation" = "about:blank"
-        "BackgroundModeEnabled" = 0
-        # v14.15: HideWebStoreIcon - Edge不支持
-        "UserFeedbackAllowed" = 0
-        "DefaultBrowserSettingEnabled" = 0
-        
-        # 高级反检测
-        # v14.15: UrlKeyedAnonymizedDataCollectionEnabled - Edge不支持
-        # v14.9: 删除 - 负优化，牺牲速度
-        # v14.9: 删除 - 与DoH冲突
-        "PaymentMethodQueryEnabled" = 0
-        "SignedHTTPExchangeEnabled" = 0
-        "ImportAutofillFormData" = 1  # v14.1: 允许导入
-        "ImportBookmarks" = 1  # v14.1: 允许导入书签
-        "ImportHistory" = 1  # v14.1: 允许导入历史
-        "ImportSavedPasswords" = 1  # v14.1: 允许导入密码
-        
-        # 隐私沙盒
-        # v14.15: PrivacySandbox* - Edge不支持
-        
-        # 性能
-        "HardwareAccelerationModeEnabled" = 1
-    }
-    
-    # v14.15: Chrome-only策略（Edge不支持）
-    if ($BrowserKey -ne "Edge") {
-        $policies["SigninAllowed"] = 1  # v14.1: 允许登录
-        $policies["BrowserSignin"] = 1  # v14.1: 允许浏览器登录
-        $policies["BookmarkBarEnabled"] = 1
-        $policies["HideWebStoreIcon"] = 1
-        $policies["PromotionalTabsEnabled"] = 0
-        $policies["PromotionsEnabled"] = 0  # v14.14: 补充新版促销策略
-        $policies["UrlKeyedAnonymizedDataCollectionEnabled"] = 0
-        $policies["PrivacySandboxAdMeasurementEnabled"] = 0
-        $policies["PrivacySandboxAdTopicsEnabled"] = 0
-        $policies["PrivacySandboxSiteEnabledAdsEnabled"] = 0
-        $policies["PrivacySandboxPromptEnabled"] = 0
-    }
-    
-    # 语言设置（差异化）
-    $lang = $languageConfig[$BrowserKey]
-    $policies["ApplicationLocaleValue"] = $lang
-    # v14.9: 删除 - 已禁用拼写检查，此项冗余
-    
-    # v14.12: 删除通用WebRTC配置块 - 移到浏览器特定块
-    
-    # 浏览器特定策略
-    if ($BrowserKey -eq "Brave") {
-        # v14.12: Brave专用WebRTC策略
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
-        
-        # Brave特定功能禁用
-        $policies["BraveRewardsDisabled"] = 1
-        $policies["BraveWalletDisabled"] = 1
-        $policies["TorDisabled"] = 1  # v14.2: 1 = 禁用Tor（0是启用）
-        $policies["TranslateEnabled"] = 0  # v12.7
-        $policies["BraveVPNDisabled"] = 1  # v14.2: 修正策略名
-        $policies["IPFSEnabled"] = 0  # v12.7
-        $policies["BraveNewsDisabled"] = 1  # v14.3: 修正策略名
-        $policies["BraveAIChatEnabled"] = 0  # v14.3: 禁用AI Chat
-        $policies["BraveTalkDisabled"] = 1  # v14.3: 禁用Talk
-        # v14.9: 补充Brave官方隐私策略
-        $policies["BraveP3AEnabled"] = 0  # v14.23: 修复数据类型（应该用整数0而非字符串"Disabled"）
-        $policies["BraveStatsPingEnabled"] = 0
-        $policies["BraveWebDiscoveryEnabled"] = 0
-    }
-    
-    if ($BrowserKey -eq "Edge") {
-        # Edge特定WebRTC策略
-        $policies["WebRtcLocalhostIpHandling"] = "DisableNonProxiedUdp"  # v14.19: 修复格式（PascalCase）
-        # v14.24: 删除WebRtcIPHandlingUrl（JSON字符串格式错误，WebRtcLocalhostIpHandling已足够）
-        $policies["SmartScreenEnabled"] = 1  # v14.12: Edge使用SmartScreen而非SafeBrowsing
-        
-        # v14.13: Edge专用书签栏策略
-        $policies["FavoritesBarEnabled"] = 1  # v14.13: Edge使用FavoritesBar而非BookmarkBar
-        
-        # v14.15: Edge专用策略（删除Chrome-only策略）
-        $policies["BrowserSignin"] = 1  # Edge使用BrowserSignin而非SigninAllowed
-        $policies["TrackingPrevention"] = 2  # v14.15: Edge追踪防护（2=平衡，不用3=严格）
-        $policies["ShowMicrosoftRewards"] = 0  # v14.15: 禁用Microsoft Rewards
-        $policies["MicrosoftEdgeInsiderPromotionEnabled"] = 0  # v14.15: 禁用Insider推广
-        $policies["VisualSearchEnabled"] = 0  # v14.15: 禁用视觉搜索
-        
-        # Edge特定功能禁用
-        $policies["EdgeShoppingAssistantEnabled"] = 0
-        $policies["EdgeCollectionsEnabled"] = 0
-        # v14.21: 删除ShowRecommendationsEnabled（Edge 122+已标记obsolete，虚假优化）
-        $policies["ConfigureDoNotTrack"] = 1
-        # v14.17: 删除EdgeEnhanceImagesEnabled（Edge 122+已移除，虚假优化）
-        # v14.19: 真正删除EdgeDiscoverEnabled（Edge 97-105专用，已obsolete，虚假优化）
-        # v14.20: 删除EdgeWalletEnabled（Edge 96+已标记obsolete，虚假优化）
-        $policies["TranslateEnabled"] = 0  # v12.6
-        $policies["EdgeWorkspacesEnabled"] = 0  # v12.6
-        $policies["HubsSidebarEnabled"] = 0  # v12.6
-        $policies["StartupBoostEnabled"] = 0  # v14.1: 禁用启动加速
-        $policies["DefaultBrowserSettingsCampaignEnabled"] = 0  # v14.1: 禁用默认浏览器推广
-        # v14.10: 删除冗余WebRTC配置（已在通用配置块设置）
-        # v14.8: 补充Edge新闻内容专用策略
-        $policies["NewTabPageContentEnabled"] = 0
-        $policies["NewTabPageQuickLinksEnabled"] = 0
-    }
-    
-    if ($BrowserKey -eq "Opera") {
-        # v14.12: Opera专用WebRTC和安全浏览策略
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
-        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
-        
-        # Opera 特定：禁用新闻、广告、搜索引擎
-        $policies["DefaultSearchProviderEnabled"] = 1
-        $policies["DefaultSearchProviderName"] = "Google"
-        $policies["DefaultSearchProviderSearchURL"] = "https://www.google.com/search?q={searchTerms}"
-        $policies["TranslateEnabled"] = 0  # v12.8
-        # 注意：Opera VPN、News、Turbo 等功能无法通过策略禁用，需要手动配置
-    }
-    
-    if ($BrowserKey -eq "Chrome") {
-        # v14.12: Chrome专用WebRTC和安全浏览策略
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
-        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
-        # v14.17: 删除GenAiDefaultSettings（cloud-only策略，本地注册表不生效，虚假优化）
-        
-        # v14.11: 删除MediaRouterEnabled - 虚假优化（策略名错误，正确的是EnableMediaRouter）
-        $policies["TranslateEnabled"] = 0  # v12.5
-    }
-    
-    if ($BrowserKey -eq "Vivaldi") {
-        # v14.12: Vivaldi专用WebRTC和安全浏览策略
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
-        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
-        
-        # Vivaldi 特定：禁用独特功能
-        # 注意：Vivaldi 的侧边栏、笔记等功能可能需要手动配置
-        $policies["TranslateEnabled"] = 0
-    }
-    
-
-    if ($BrowserKey -eq "Chromium") {
-        # v14.12: Chromium专用WebRTC和安全浏览策略
-        $policies["WebRtcIPHandling"] = "disable_non_proxied_udp"
-        $policies["SafeBrowsingProtectionLevel"] = 1  # v14.12: 标准保护（修复CF验证）
-        
-        # Chromium 特定：纯净开源版本
-        $policies["TranslateEnabled"] = 0  # v13.0
-    }
-    # 应用策略
-    $successCount = 0
-    $failCount = 0
-    
-    foreach ($name in $policies.Keys) {
-        try {
-            $value = $policies[$name]
-            if ($value -is [string]) {
-                Set-ItemProperty -Path $regPath -Name $name -Value $value -Type String -Force -ErrorAction Stop
-            } else {
-                Set-ItemProperty -Path $regPath -Name $name -Value $value -Type DWord -Force -ErrorAction Stop
-            }
-            $successCount++
-        } catch {
-            $failCount++
-            Write-Log "设置策略失败 [$name]: $_" "WARNING"
-        }
-    }
-    
-    # 删除旧版本遗留的配置（v13.4之前）
-    $legacyKeys = @("RestoreOnStartupURLs")
-    foreach ($key in $legacyKeys) {
-        try {
-            if (Get-ItemProperty -Path $regPath -Name $key -ErrorAction SilentlyContinue) {
-                Remove-ItemProperty -Path $regPath -Name $key -Force -ErrorAction Stop
-                Write-Log "删除旧配置: $key" "SUCCESS"
-            }
-        } catch {
-            Write-Log "删除旧配置失败 [$key]: $_" "WARNING"
-        }
-    }
-    
-    Write-Log "成功应用 $successCount 个策略 ($failCount 失败)" "SUCCESS"
+function Test-IsAdmin {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# ===== Firefox 高级反检测配置 =====
-function Set-FirefoxAdvancedConfig {
-    param(
-        [string]$BrowserKey,
-        [hashtable]$BrowserInfo
-    )
-    
-    $browserName = $BrowserInfo.Name
-    $installDir = $BrowserInfo.InstallDir
-    
-    # 检测浏览器类型
-    
-    Write-Log "优化 $browserName..." "HEADER"
-    
-    if (-not $installDir -or -not (Test-Path $installDir)) {
-        Write-Log "未找到安装目录" "ERROR"
+function New-BackupRoot {
+    $root = Join-Path $RepoRoot 'backups'
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $path = Join-Path $root $stamp
+    if (-not $DryRun) {
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
+    }
+    return $path
+}
+
+$BackupRoot = New-BackupRoot
+$IsAdmin = Test-IsAdmin
+$ApplyMachinePolicies = (-not $UserOnly) -and ($IsAdmin -or $Machine)
+
+if ($ApplyMachinePolicies -and -not $IsAdmin) {
+    Write-Warn "Machine-level policy writes were requested, but this PowerShell is not elevated. HKLM writes will be skipped."
+    $ApplyMachinePolicies = $false
+}
+elseif ((-not $UserOnly) -and (-not $IsAdmin)) {
+    Write-Warn "Current PowerShell is not elevated. HKLM machine policies will be skipped; HKCU policies and user profile preferences can still be written."
+}
+
+function Backup-File {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) {
         return
     }
-    
-    # 创建 distribution 目录
-    $distDir = Join-Path $installDir "distribution"
-    if (-not (Test-Path $distDir)) {
-        try {
-            New-Item -Path $distDir -ItemType Directory -Force | Out-Null
-            Write-Log "创建目录: $distDir" "SUCCESS"
-        } catch {
-            Write-Log "创建目录失败: $_" "ERROR"
-            return
+    $safeName = ($Path -replace '[:\\\/]', '_')
+    $dest = Join-Path $BackupRoot $safeName
+    if (-not $DryRun) {
+        Copy-Item -LiteralPath $Path -Destination $dest -Force
+    }
+}
+
+function Set-RegistryPolicyValue {
+    param(
+        [string]$Hive,
+        [string]$SubPath,
+        [string]$Name,
+        [ValidateSet('DWord', 'String')]
+        [string]$Type,
+        [object]$Value
+    )
+
+    $path = "Registry::$Hive\$SubPath"
+    if ($DryRun) {
+        Write-Change "Would set $Hive\$SubPath $Name=$Value ($Type)"
+        return
+    }
+
+    try {
+        if (-not (Test-Path -Path $path)) {
+            New-Item -Path $path -Force | Out-Null
+        }
+        $existing = Get-ItemProperty -Path $path -Name $Name -ErrorAction SilentlyContinue
+        if ($Type -eq 'DWord') {
+            New-ItemProperty -Path $path -Name $Name -PropertyType DWord -Value ([int]$Value) -Force | Out-Null
+        }
+        else {
+            New-ItemProperty -Path $path -Name $Name -PropertyType String -Value ([string]$Value) -Force | Out-Null
+        }
+        $existingNames = if ($null -ne $existing) { @($existing.PSObject.Properties | ForEach-Object { $_.Name }) } else { @() }
+        $existingValue = if ($existingNames -contains $Name) { $existing.$Name } else { $null }
+        if ($null -eq $existing -or $existingValue -ne $Value) {
+            Write-Change "Set $Hive\$SubPath $Name=$Value"
         }
     }
-    
-    # policies.json
-    $policiesPath = Join-Path $distDir "policies.json"
-    $lang = $languageConfig[$BrowserKey]
-    
-    $policiesContent = @{
-        policies = @{
-            DisplayBookmarksToolbar = "always"
-            Homepage = @{
-                URL = "about:blank"
-                Locked = $true
-                StartPage = "none"
+    catch {
+        $key = "$Hive\$SubPath"
+        if (-not $Script:DeniedRegistryPaths.ContainsKey($key)) {
+            $Script:DeniedRegistryPaths[$key] = $true
+            Write-Warn "Cannot write registry policy path ${key}: $($_.Exception.Message)"
+        }
+    }
+}
+
+function Set-RegistryStringList {
+    param(
+        [string]$Hive,
+        [string]$SubPath,
+        [string]$ListName,
+        [string[]]$Values
+    )
+
+    $normalizedValues = @($Values)
+    if ($null -eq $Values -or $normalizedValues.Count -eq 0) {
+        $path = "Registry::$Hive\$SubPath\$ListName"
+        if ($DryRun) {
+            Write-Change "Would clear $Hive\$SubPath\$ListName"
+            return
+        }
+        try {
+            if (Test-Path -Path $path) {
+                Remove-Item -Path $path -Recurse -Force
+                Write-Change "Cleared $Hive\$SubPath\$ListName"
             }
-            NewTabPage = $false
+        }
+        catch {
+            $key = "$Hive\$SubPath\$ListName"
+            if (-not $Script:DeniedRegistryPaths.ContainsKey($key)) {
+                $Script:DeniedRegistryPaths[$key] = $true
+                Write-Warn "Cannot clear registry policy list ${key}: $($_.Exception.Message)"
+            }
+        }
+        return
+    }
+
+    $path = "Registry::$Hive\$SubPath\$ListName"
+    if ($DryRun) {
+        Write-Change "Would write $($normalizedValues.Count) values to $Hive\$SubPath\$ListName"
+        return
+    }
+
+    try {
+        if (-not (Test-Path -Path $path)) {
+            New-Item -Path $path -Force | Out-Null
+        }
+        $current = Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
+        if ($null -ne $current) {
+            foreach ($prop in $current.PSObject.Properties) {
+                if ($prop.Name -match '^\d+$') {
+                    Remove-ItemProperty -Path $path -Name $prop.Name -ErrorAction SilentlyContinue
+                }
+            }
+        }
+
+        for ($i = 0; $i -lt $normalizedValues.Count; $i++) {
+            New-ItemProperty -Path $path -Name ([string]($i + 1)) -PropertyType String -Value $normalizedValues[$i] -Force | Out-Null
+        }
+        Write-Change "Wrote $($normalizedValues.Count) values to $Hive\$SubPath\$ListName"
+    }
+    catch {
+        $key = "$Hive\$SubPath\$ListName"
+        if (-not $Script:DeniedRegistryPaths.ContainsKey($key)) {
+            $Script:DeniedRegistryPaths[$key] = $true
+            Write-Warn "Cannot write registry policy list ${key}: $($_.Exception.Message)"
+        }
+    }
+}
+
+function Merge-PolicyLists {
+    param([array[]]$Lists)
+    $result = New-Object System.Collections.Generic.List[object]
+    foreach ($list in $Lists) {
+        foreach ($item in $list) {
+            $result.Add($item) | Out-Null
+        }
+    }
+    return $result.ToArray()
+}
+
+function New-Policy {
+    param(
+        [string]$Name,
+        [ValidateSet('DWord', 'String')]
+        [string]$Type,
+        [object]$Value
+    )
+    return [pscustomobject]@{
+        Name = $Name
+        Type = $Type
+        Value = $Value
+    }
+}
+
+$ChromiumCommonPolicies = @(
+    (New-Policy 'BookmarkBarEnabled' 'DWord' 1),
+    (New-Policy 'ShowHomeButton' 'DWord' 1),
+    (New-Policy 'HomepageIsNewTabPage' 'DWord' 0),
+    (New-Policy 'HomepageLocation' 'String' 'about:blank'),
+    (New-Policy 'NewTabPageLocation' 'String' 'about:blank'),
+    (New-Policy 'RestoreOnStartup' 'DWord' 4),
+    (New-Policy 'DefaultBrowserSettingEnabled' 'DWord' 0),
+    (New-Policy 'BackgroundModeEnabled' 'DWord' 0),
+    (New-Policy 'HardwareAccelerationModeEnabled' 'DWord' 1),
+    (New-Policy 'MetricsReportingEnabled' 'DWord' 0),
+    (New-Policy 'UserFeedbackAllowed' 'DWord' 0),
+    (New-Policy 'UrlKeyedAnonymizedDataCollectionEnabled' 'DWord' 0),
+    (New-Policy 'AlternateErrorPagesEnabled' 'DWord' 0),
+    (New-Policy 'SearchSuggestEnabled' 'DWord' 0),
+    (New-Policy 'PromotionalTabsEnabled' 'DWord' 0),
+    (New-Policy 'PrivacySandboxAdMeasurementEnabled' 'DWord' 0),
+    (New-Policy 'PrivacySandboxAdTopicsEnabled' 'DWord' 0),
+    (New-Policy 'PrivacySandboxSiteEnabledAdsEnabled' 'DWord' 0),
+    (New-Policy 'PrivacySandboxPromptEnabled' 'DWord' 0),
+    (New-Policy 'QuicAllowed' 'DWord' 0),
+    (New-Policy 'DnsOverHttpsMode' 'String' 'off'),
+    (New-Policy 'WebRtcIPHandling' 'String' 'disable_non_proxied_udp'),
+    (New-Policy 'DefaultGeolocationSetting' 'DWord' 2),
+    (New-Policy 'DefaultNotificationsSetting' 'DWord' 2),
+    (New-Policy 'PaymentMethodQueryEnabled' 'DWord' 0),
+    (New-Policy 'SafeBrowsingProtectionLevel' 'DWord' 1),
+    (New-Policy 'DefaultCookiesSetting' 'DWord' 1),
+    (New-Policy 'BlockThirdPartyCookies' 'DWord' 1),
+    (New-Policy 'PasswordManagerEnabled' 'DWord' 1),
+    (New-Policy 'AutofillAddressEnabled' 'DWord' 1),
+    (New-Policy 'AutofillCreditCardEnabled' 'DWord' 1),
+    (New-Policy 'BrowserSignin' 'DWord' 1),
+    (New-Policy 'SigninAllowed' 'DWord' 1)
+)
+
+$EdgePolicies = @(
+    (New-Policy 'FavoritesBarEnabled' 'DWord' 1),
+    (New-Policy 'StartupBoostEnabled' 'DWord' 0),
+    (New-Policy 'HideFirstRunExperience' 'DWord' 1),
+    (New-Policy 'ShowRecommendationsEnabled' 'DWord' 0),
+    (New-Policy 'DefaultBrowserSettingsCampaignEnabled' 'DWord' 0),
+    (New-Policy 'PersonalizationReportingEnabled' 'DWord' 0),
+    (New-Policy 'NewTabPageContentEnabled' 'DWord' 0),
+    (New-Policy 'NewTabPageQuickLinksEnabled' 'DWord' 0),
+    (New-Policy 'HubsSidebarEnabled' 'DWord' 0),
+    (New-Policy 'EdgeShoppingAssistantEnabled' 'DWord' 0),
+    (New-Policy 'EdgeWalletCheckoutEnabled' 'DWord' 0),
+    (New-Policy 'ShowMicrosoftRewards' 'DWord' 0),
+    (New-Policy 'EdgeCollectionsEnabled' 'DWord' 0),
+    (New-Policy 'EdgeWorkspacesEnabled' 'DWord' 0),
+    (New-Policy 'MicrosoftEdgeInsiderPromotionEnabled' 'DWord' 0),
+    (New-Policy 'VisualSearchEnabled' 'DWord' 0),
+    (New-Policy 'ConfigureDoNotTrack' 'DWord' 1),
+    (New-Policy 'TrackingPrevention' 'DWord' 2),
+    (New-Policy 'SmartScreenEnabled' 'DWord' 1),
+    (New-Policy 'WebRtcLocalhostIpHandling' 'String' 'DisableNonProxiedUdp')
+)
+
+$BravePolicies = @(
+    (New-Policy 'BraveNewsDisabled' 'DWord' 1),
+    (New-Policy 'BraveRewardsDisabled' 'DWord' 1),
+    (New-Policy 'BraveWalletDisabled' 'DWord' 1),
+    (New-Policy 'BraveVPNDisabled' 'DWord' 1),
+    (New-Policy 'BraveTalkDisabled' 'DWord' 1),
+    (New-Policy 'BraveAIChatEnabled' 'DWord' 0),
+    (New-Policy 'BraveP3AEnabled' 'DWord' 0),
+    (New-Policy 'BraveStatsPingEnabled' 'DWord' 0),
+    (New-Policy 'BraveWebDiscoveryEnabled' 'DWord' 0),
+    (New-Policy 'TorDisabled' 'DWord' 1),
+    (New-Policy 'IPFSEnabled' 'DWord' 0)
+)
+
+$ChromiumBrowsers = @(
+    [pscustomobject]@{
+        Name = 'Chrome'
+        PolicySubPath = 'SOFTWARE\Policies\Google\Chrome'
+        UserDataRoot = Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data'
+        ProcessNames = @('chrome')
+        ExecutableNames = @('chrome.exe')
+        CandidatePaths = @(
+            (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe')
+        )
+        Policies = $ChromiumCommonPolicies
+        UsesEdgeStore = $false
+    },
+    [pscustomobject]@{
+        Name = 'Chromium'
+        PolicySubPath = 'SOFTWARE\Policies\Chromium'
+        UserDataRoot = Join-Path $env:LOCALAPPDATA 'Chromium\User Data'
+        ProcessNames = @('chrome')
+        ExecutableNames = @('chrome.exe')
+        CandidatePaths = @(
+            (Join-Path $env:LOCALAPPDATA 'Chromium\Application\chrome.exe'),
+            (Join-Path $env:ProgramFiles 'Chromium\Application\chrome.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Chromium\Application\chrome.exe')
+        )
+        Policies = $ChromiumCommonPolicies
+        UsesEdgeStore = $false
+    },
+    [pscustomobject]@{
+        Name = 'Edge'
+        PolicySubPath = 'SOFTWARE\Policies\Microsoft\Edge'
+        UserDataRoot = Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\User Data'
+        ProcessNames = @('msedge')
+        ExecutableNames = @('msedge.exe')
+        CandidatePaths = @(
+            (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'),
+            (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe')
+        )
+        Policies = Merge-PolicyLists $ChromiumCommonPolicies, $EdgePolicies
+        UsesEdgeStore = $true
+    },
+    [pscustomobject]@{
+        Name = 'Brave'
+        PolicySubPath = 'SOFTWARE\Policies\BraveSoftware\Brave'
+        UserDataRoot = Join-Path $env:LOCALAPPDATA 'BraveSoftware\Brave-Browser\User Data'
+        ProcessNames = @('brave')
+        ExecutableNames = @('brave.exe')
+        CandidatePaths = @(
+            (Join-Path $env:ProgramFiles 'BraveSoftware\Brave-Browser\Application\brave.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'BraveSoftware\Brave-Browser\Application\brave.exe'),
+            (Join-Path $env:LOCALAPPDATA 'BraveSoftware\Brave-Browser\Application\brave.exe')
+        )
+        Policies = Merge-PolicyLists $ChromiumCommonPolicies, $BravePolicies
+        UsesEdgeStore = $false
+    },
+    [pscustomobject]@{
+        Name = 'Vivaldi'
+        PolicySubPath = 'SOFTWARE\Policies\Vivaldi'
+        UserDataRoot = Join-Path $env:LOCALAPPDATA 'Vivaldi\User Data'
+        ProcessNames = @('vivaldi')
+        ExecutableNames = @('vivaldi.exe')
+        CandidatePaths = @(
+            (Join-Path $env:LOCALAPPDATA 'Vivaldi\Application\vivaldi.exe'),
+            (Join-Path $env:ProgramFiles 'Vivaldi\Application\vivaldi.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Vivaldi\Application\vivaldi.exe')
+        )
+        Policies = $ChromiumCommonPolicies
+        UsesEdgeStore = $false
+    }
+)
+
+$Opera = [pscustomobject]@{
+    Name = 'Opera'
+    UserDataRoot = Join-Path $env:APPDATA 'Opera Software\Opera Stable'
+    ProcessNames = @('opera')
+    ExecutableNames = @('opera.exe')
+    CandidatePaths = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Opera\opera.exe'),
+        (Join-Path $env:ProgramFiles 'Opera\opera.exe'),
+        (Join-Path ${env:ProgramFiles(x86)} 'Opera\opera.exe')
+    )
+}
+
+$FirefoxBrowsers = @(
+    [pscustomobject]@{
+        Name = 'Firefox'
+        InstallRoot = Join-Path $env:ProgramFiles 'Mozilla Firefox'
+        ProfileRoot = Join-Path $env:APPDATA 'Mozilla\Firefox\Profiles'
+        ProcessNames = @('firefox')
+        ExecutableNames = @('firefox.exe')
+        CandidatePaths = @(
+            (Join-Path $env:ProgramFiles 'Mozilla Firefox\firefox.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\firefox.exe')
+        )
+        Locale = 'zh-CN'
+    },
+    [pscustomobject]@{
+        Name = 'LibreWolf'
+        InstallRoot = Join-Path $env:ProgramFiles 'LibreWolf'
+        ProfileRoot = Join-Path $env:APPDATA 'LibreWolf\Profiles'
+        ProcessNames = @('librewolf')
+        ExecutableNames = @('librewolf.exe')
+        CandidatePaths = @(
+            (Join-Path $env:ProgramFiles 'LibreWolf\librewolf.exe'),
+            (Join-Path ${env:ProgramFiles(x86)} 'LibreWolf\librewolf.exe')
+        )
+        Locale = 'zh-CN'
+    },
+    [pscustomobject]@{
+        Name = 'Zen'
+        InstallRoot = Join-Path $env:ProgramFiles 'Zen Browser'
+        ProfileRoot = Join-Path $env:APPDATA 'zen\Profiles'
+        ProcessNames = @('zen')
+        ExecutableNames = @('zen.exe')
+        CandidatePaths = @(
+            (Join-Path $env:ProgramFiles 'Zen Browser\zen.exe'),
+            (Join-Path $env:ProgramFiles 'Zen\zen.exe'),
+            (Join-Path $env:ProgramFiles 'Zen-Browser\zen.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Zen\zen.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Zen-Browser\zen.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Zen Browser\zen.exe')
+        )
+        Locale = 'zh-CN'
+    }
+)
+
+function Get-ObjectPropertyNames {
+    param([object]$Object)
+    if ($null -eq $Object) {
+        return @()
+    }
+    return @($Object.PSObject.Properties | ForEach-Object { $_.Name })
+}
+
+function Get-FirstExistingPath {
+    param([string[]]$Paths)
+    foreach ($path in @($Paths)) {
+        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -LiteralPath $path)) {
+            return (Resolve-Path -LiteralPath $path).Path
+        }
+    }
+    return $null
+}
+
+function Get-AppPathExecutable {
+    param([object]$Browser)
+
+    if ($Browser.Name -eq 'Chromium') {
+        return $null
+    }
+
+    foreach ($exe in @($Browser.ExecutableNames)) {
+        $regPaths = @(
+            "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exe",
+            "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exe"
+        )
+        foreach ($regPath in $regPaths) {
+            try {
+                $item = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
+                $value = if ($null -ne $item) { $item.'(Default)' } else { $null }
+                if (-not [string]::IsNullOrWhiteSpace($value) -and (Test-Path -LiteralPath $value)) {
+                    return (Resolve-Path -LiteralPath $value).Path
+                }
+            }
+            catch {
+                continue
+            }
+        }
+    }
+    return $null
+}
+
+function Get-CommandExecutable {
+    param([object]$Browser)
+
+    if ($Browser.Name -eq 'Chromium') {
+        return $null
+    }
+
+    foreach ($exe in @($Browser.ExecutableNames)) {
+        $commandName = [IO.Path]::GetFileNameWithoutExtension($exe)
+        $command = Get-Command $commandName -ErrorAction SilentlyContinue
+        if ($command -and $command.Source -and (Test-Path -LiteralPath $command.Source)) {
+            return (Resolve-Path -LiteralPath $command.Source).Path
+        }
+    }
+    return $null
+}
+
+function Resolve-BrowserExecutable {
+    param([object]$Browser)
+
+    $candidate = Get-FirstExistingPath -Paths $Browser.CandidatePaths
+    if ($candidate) {
+        return $candidate
+    }
+
+    $appPath = Get-AppPathExecutable -Browser $Browser
+    if ($appPath) {
+        return $appPath
+    }
+
+    return Get-CommandExecutable -Browser $Browser
+}
+
+function Get-ExecutableVersion {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    try {
+        return [Diagnostics.FileVersionInfo]::GetVersionInfo($Path).ProductVersion
+    }
+    catch {
+        return $null
+    }
+}
+
+function Set-BrowserRuntimeInfo {
+    param([object[]]$Browsers)
+
+    foreach ($browser in @($Browsers)) {
+        $exePath = Resolve-BrowserExecutable -Browser $browser
+        $installed = -not [string]::IsNullOrWhiteSpace($exePath)
+        $version = if ($installed) { Get-ExecutableVersion -Path $exePath } else { $null }
+
+        $browser | Add-Member -MemberType NoteProperty -Name ExePath -Value $exePath -Force
+        $browser | Add-Member -MemberType NoteProperty -Name Installed -Value $installed -Force
+        $browser | Add-Member -MemberType NoteProperty -Name Version -Value $version -Force
+
+        if ($installed -and ((Get-ObjectPropertyNames -Object $browser) -contains 'InstallRoot')) {
+            $browser.InstallRoot = Split-Path $exePath -Parent
+        }
+    }
+}
+
+function Initialize-BrowserDetection {
+    $all = @($ChromiumBrowsers) + @($Opera) + @($FirefoxBrowsers)
+    Set-BrowserRuntimeInfo -Browsers $all
+
+    Write-Info "Detected browser installations:"
+    foreach ($browser in $all) {
+        if ($browser.Installed) {
+            $versionText = if ([string]::IsNullOrWhiteSpace($browser.Version)) { 'version unknown' } else { $browser.Version }
+            Write-Info "  $($browser.Name): $versionText - $($browser.ExePath)"
+        }
+        else {
+            Write-Info "  $($browser.Name): not detected"
+        }
+    }
+}
+
+function Get-EnabledExtensionConfig {
+    param([string]$Path)
+
+    $result = [ordered]@{
+        chromium_web_store = @()
+        edge_addons = @()
+        firefox_addons = @()
+    }
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        Write-Warn "Extension config not found at $Path. Extension policy writes skipped."
+        return $result
+    }
+
+    $config = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    foreach ($section in @($result.Keys)) {
+        if ($config.PSObject.Properties.Name -contains $section) {
+            $result[$section] = @($config.$section | Where-Object { $_.enabled -eq $true })
+        }
+    }
+    return $result
+}
+
+$ExtensionConfig = Get-EnabledExtensionConfig -Path $ExtensionConfigPath
+
+function Get-ChromiumForceList {
+    param([string]$BrowserName, [bool]$UsesEdgeStore)
+
+    $items = New-Object System.Collections.Generic.List[string]
+    $source = if ($UsesEdgeStore) { $ExtensionConfig.edge_addons } else { $ExtensionConfig.chromium_web_store }
+    foreach ($ext in $source) {
+        if ($ext.browsers -contains $BrowserName) {
+            $id = [string]$ext.id
+            $url = if ($UsesEdgeStore) { [string]$ext.update_url } else { [string]$ext.update_url }
+            if ($id -match '^[a-p]{32}$' -and $url -match '^https://') {
+                $items.Add("$id;$url") | Out-Null
+            }
+            else {
+                Write-Warn "Skipping invalid extension entry '$($ext.name)' for $BrowserName."
+            }
+        }
+    }
+    return $items.ToArray()
+}
+
+function Set-ChromiumPolicies {
+    param([object]$Browser)
+
+    $hives = @('HKEY_CURRENT_USER')
+    if ($ApplyMachinePolicies) {
+        $hives += 'HKEY_LOCAL_MACHINE'
+    }
+
+    foreach ($hive in $hives) {
+        foreach ($policy in $Browser.Policies) {
+            Set-RegistryPolicyValue -Hive $hive -SubPath $Browser.PolicySubPath -Name $policy.Name -Type $policy.Type -Value $policy.Value
+        }
+
+        $forceList = @(Get-ChromiumForceList -BrowserName $Browser.Name -UsesEdgeStore $Browser.UsesEdgeStore)
+        Set-RegistryStringList -Hive $hive -SubPath $Browser.PolicySubPath -ListName 'ExtensionInstallForcelist' -Values $forceList
+        Set-RegistryStringList -Hive $hive -SubPath $Browser.PolicySubPath -ListName 'RestoreOnStartupURLs' -Values @('about:blank')
+    }
+}
+
+function Test-BrowserRunning {
+    param([string[]]$ProcessNames)
+    foreach ($name in $ProcessNames) {
+        if (Get-Process -Name $name -ErrorAction SilentlyContinue) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Ensure-JsonObjectProperty {
+    param([object]$Object, [string]$Name)
+
+    $propertyNames = @($Object.PSObject.Properties | ForEach-Object { $_.Name })
+    if (-not ($propertyNames -contains $Name) -or $null -eq $Object.$Name) {
+        $Object | Add-Member -MemberType NoteProperty -Name $Name -Value ([pscustomobject]@{}) -Force
+    }
+    return $Object.$Name
+}
+
+function Set-JsonPathValue {
+    param([object]$Object, [string]$Path, [object]$Value)
+
+    $parts = $Path -split '\.'
+    $cursor = $Object
+    for ($i = 0; $i -lt $parts.Count - 1; $i++) {
+        $cursor = Ensure-JsonObjectProperty -Object $cursor -Name $parts[$i]
+    }
+    $leaf = $parts[-1]
+    $cursor | Add-Member -MemberType NoteProperty -Name $leaf -Value $Value -Force
+}
+
+function Save-JsonFile {
+    param([string]$Path, [object]$Object)
+
+    $json = $Object | ConvertTo-Json -Depth 100
+    if (-not $DryRun) {
+        Set-Content -LiteralPath $Path -Value $json -Encoding UTF8
+    }
+}
+
+function Read-JsonObjectFile {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return [pscustomobject]@{}
+    }
+
+    try {
+        $raw = Get-Content -LiteralPath $Path -Raw
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return [pscustomobject]@{}
+        }
+        $parsed = $raw | ConvertFrom-Json
+        if ($null -eq $parsed) {
+            return [pscustomobject]@{}
+        }
+        return $parsed
+    }
+    catch {
+        $reason = ($_.Exception.Message -split "(`r`n|`n|`r)")[0]
+        if ($reason.Length -gt 180) {
+            $reason = $reason.Substring(0, 180) + '...'
+        }
+        Write-Warn "Cannot parse JSON file $Path. Edits are skipped to avoid overwriting existing browser state. $reason"
+        return $null
+    }
+}
+
+function Get-ChromiumPreferenceFiles {
+    param([string]$UserDataRoot)
+
+    if (-not (Test-Path -LiteralPath $UserDataRoot)) {
+        return @()
+    }
+
+    return @(Get-ChildItem -LiteralPath $UserDataRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object {
+            Test-Path -LiteralPath (Join-Path $_.FullName 'Preferences')
+        } |
+        ForEach-Object {
+            Join-Path $_.FullName 'Preferences'
+        })
+}
+
+function Initialize-PreferenceFile {
+    param([string]$UserDataRoot, [string]$BrowserName)
+
+    $defaultProfile = Join-Path $UserDataRoot 'Default'
+    $prefsPath = Join-Path $defaultProfile 'Preferences'
+    $localState = Join-Path $UserDataRoot 'Local State'
+
+    if ($DryRun) {
+        if (-not (Test-Path -LiteralPath $prefsPath)) {
+            Write-Change "Would create $prefsPath"
+        }
+        if (-not (Test-Path -LiteralPath $localState)) {
+            Write-Change "Would create $localState"
+        }
+        return
+    }
+
+    New-Item -ItemType Directory -Path $defaultProfile -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $prefsPath)) {
+        [pscustomobject]@{} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $prefsPath -Encoding UTF8
+        Write-Change "Created $prefsPath"
+    }
+    if (-not (Test-Path -LiteralPath $localState)) {
+        [pscustomobject]@{} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $localState -Encoding UTF8
+        Write-Change "Created $localState"
+    }
+}
+
+function Set-ChromiumProfilePreferences {
+    param([object]$Browser)
+
+    if (-not $ApplyProfilePreferences) {
+        return
+    }
+
+    $propertyNames = Get-ObjectPropertyNames -Object $Browser
+    $isInstalled = ($propertyNames -contains 'Installed') -and $Browser.Installed
+    if ((-not (Test-Path -LiteralPath $Browser.UserDataRoot)) -and (-not $isInstalled)) {
+        Write-Info "$($Browser.Name) user data root not found; profile preference edits skipped."
+        return
+    }
+
+    Initialize-PreferenceFile -UserDataRoot $Browser.UserDataRoot -BrowserName $Browser.Name
+
+    if (Test-BrowserRunning -ProcessNames $Browser.ProcessNames) {
+        Write-Warn "$($Browser.Name) is running. Profile preference edits skipped; close it and run again for profile cleanup."
+        return
+    }
+
+    $localState = Join-Path $Browser.UserDataRoot 'Local State'
+    if (Test-Path -LiteralPath $localState) {
+        Backup-File -Path $localState
+        $state = Read-JsonObjectFile -Path $localState
+        if ($null -ne $state) {
+            Set-JsonPathValue -Object $state -Path 'background_mode.enabled' -Value $false
+            if ($Browser.Name -eq 'Opera') {
+                Set-JsonPathValue -Object $state -Path 'browser.remote_flags' -Value ''
+            }
+            if ($DryRun) {
+                Write-Change "Would update $localState"
+            }
+            else {
+                Save-JsonFile -Path $localState -Object $state
+                Write-Change "Updated $localState"
+            }
+        }
+    }
+
+    foreach ($prefsPath in Get-ChromiumPreferenceFiles -UserDataRoot $Browser.UserDataRoot) {
+        Backup-File -Path $prefsPath
+        $prefs = Read-JsonObjectFile -Path $prefsPath
+        if ($null -eq $prefs) {
+            continue
+        }
+
+        Set-JsonPathValue -Object $prefs -Path 'bookmark_bar.show_on_all_tabs' -Value $true
+        Set-JsonPathValue -Object $prefs -Path 'browser.check_default_browser' -Value $false
+        Set-JsonPathValue -Object $prefs -Path 'homepage' -Value 'about:blank'
+        Set-JsonPathValue -Object $prefs -Path 'homepage_is_newtabpage' -Value $false
+        Set-JsonPathValue -Object $prefs -Path 'session.restore_on_startup' -Value 4
+        Set-JsonPathValue -Object $prefs -Path 'session.startup_urls' -Value @('about:blank')
+        Set-JsonPathValue -Object $prefs -Path 'profile.default_content_setting_values.geolocation' -Value 2
+        Set-JsonPathValue -Object $prefs -Path 'profile.default_content_setting_values.notifications' -Value 2
+        Set-JsonPathValue -Object $prefs -Path 'privacy_sandbox.apis_enabled' -Value $false
+        Set-JsonPathValue -Object $prefs -Path 'privacy_sandbox.m1.topics_enabled' -Value $false
+        Set-JsonPathValue -Object $prefs -Path 'privacy_sandbox.m1.fledge_enabled' -Value $false
+        Set-JsonPathValue -Object $prefs -Path 'privacy_sandbox.m1.ad_measurement_enabled' -Value $false
+
+        if ($Browser.Name -eq 'Vivaldi') {
+            Set-JsonPathValue -Object $prefs -Path 'vivaldi.bookmarks.bar.visible' -Value $true
+            Set-JsonPathValue -Object $prefs -Path 'vivaldi.homepage' -Value 'about:blank'
+            Set-JsonPathValue -Object $prefs -Path 'vivaldi.startup.check_is_default' -Value $false
+            Set-JsonPathValue -Object $prefs -Path 'vivaldi.workspaces.enabled' -Value $false
+            Set-JsonPathValue -Object $prefs -Path 'vivaldi.translate.enabled' -Value $true
+        }
+
+        if ($Browser.Name -eq 'Opera') {
+            Set-JsonPathValue -Object $prefs -Path 'bookmark_bar.auto_visibility' -Value $false
+            Set-JsonPathValue -Object $prefs -Path 'consent_flow.consent_given' -Value $true
+            Set-JsonPathValue -Object $prefs -Path 'consent_flow.option.data_general_interests' -Value $false
+            Set-JsonPathValue -Object $prefs -Path 'consent_flow.option.data_general_location' -Value $false
+            Set-JsonPathValue -Object $prefs -Path 'consent_flow.option.usage_personalized_ad' -Value $false
+            Set-JsonPathValue -Object $prefs -Path 'consent_flow.option.usage_personalized_content' -Value $false
+        }
+
+        if ($DryRun) {
+            Write-Change "Would update $prefsPath"
+        }
+        else {
+            Save-JsonFile -Path $prefsPath -Object $prefs
+            Write-Change "Updated $prefsPath"
+        }
+    }
+}
+
+function New-FirefoxPolicies {
+    param([string]$Locale)
+
+    return [ordered]@{
+        policies = [ordered]@{
             DisableTelemetry = $true
-            DisablePocket = $true
             DisableFirefoxStudies = $true
-            DontCheckDefaultBrowser = $true  # v14.8: 修正格式
-            ShowHomeButton = $true  # v14.8: 显示主页按钮
-            DisableDefaultBrowserAgent = $true  # v14.10: 禁用后台默认浏览器Agent
-            BackgroundAppUpdate = $false  # v14.14: 禁用后台更新（不禁用手动更新）
-            RequestedLocales = @($lang)  # v14.23: 修复格式（应该是数组而非字符串）
-            # DisableFirefoxAccounts = $true  # v14.1: 删除此项，允许登录
-            DisableFormHistory = $false  # v14.1: 允许表单历史
-            OfferToSaveLogins = $true
+            DisablePocket = $true
+            DisableDefaultBrowserAgent = $true
+            DontCheckDefaultBrowser = $true
+            BackgroundAppUpdate = $false
+            DisplayBookmarksToolbar = 'always'
+            ShowHomeButton = $true
+            NewTabPage = $false
+            HardwareAcceleration = $true
             PasswordManagerEnabled = $true
-            FirefoxHome = @{
+            OfferToSaveLogins = $true
+            DisableFormHistory = $false
+            RequestedLocales = @($Locale)
+            Homepage = [ordered]@{
+                URL = 'about:blank'
+                StartPage = 'none'
+                Locked = $true
+            }
+            FirefoxHome = [ordered]@{
                 Search = $false
                 TopSites = $false
-                SponsoredTopSites = $false  # v14.10: 禁用赞助的常用网站
+                SponsoredTopSites = $false
                 Highlights = $false
                 Pocket = $false
-                SponsoredPocket = $false  # v14.10: 禁用赞助的Pocket
-                Stories = $false  # v14.10: 禁用Stories
-                SponsoredStories = $false  # v14.10: 禁用赞助的Stories
+                SponsoredPocket = $false
+                Stories = $false
+                SponsoredStories = $false
                 Snippets = $false
-                Locked = $true  # v14.10: 锁定配置
+                Locked = $true
             }
-            FirefoxSuggest = @{  # v14.10: 禁用Firefox Suggest赞助建议
+            UserMessaging = [ordered]@{
+                ExtensionRecommendations = $false
+                FeatureRecommendations = $false
+                FirefoxLabs = $false
+                MoreFromMozilla = $false
+                SkipOnboarding = $true
+                UrlbarInterventions = $false
+                WhatsNew = $false
+            }
+            FirefoxSuggest = [ordered]@{
                 WebSuggestions = $false
                 SponsoredSuggestions = $false
                 ImproveSuggest = $false
                 Locked = $true
             }
-            UserMessaging = @{
-                WhatsNew = $false
-                ExtensionRecommendations = $false
-                FeatureRecommendations = $false
-                UrlbarInterventions = $false
-                SkipOnboarding = $true
-                MoreFromMozilla = $false  # v14.13: 补充Mozilla推广内容
-                FirefoxLabs = $false  # v14.13: 补充Firefox实验功能推广
-            }
-            GenerativeAI = @{  # v14.15: 补充官方GenerativeAI策略
-                Enabled = $false
-                Chatbot = $false
-                LinkPreviews = $false
-                TabGroups = $false
-                Locked = $true
-            }
-            AIControls = @{  # v14.16: Mozilla官方AI总控策略
-                Default = @{
-                    Value = "blocked"
-                    Locked = $true
-                }
-            }
-            VisualSearchEnabled = $false  # v14.15: 补充官方视觉搜索策略
-            Preferences = @{
-                "browser.ml.chat.enabled" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用AI聊天功能
-                "browser.ml.chat.sidebar" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用AI聊天侧边栏
-                "browser.urlbar.suggest.mdn" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用MDN建议
-                "browser.urlbar.trending.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用趋势搜索
-                "browser.urlbar.weather.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用天气建议
-                "browser.urlbar.addons.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用扩展建议
-                "browser.urlbar.pocket.featureGate" = @{ Value = $false; Status = "locked" }  # v14.14: 禁用Pocket建议
-            }
-            Cookies = @{
-                Behavior = "reject-tracker-and-partition-foreign"
-                BehaviorPrivateBrowsing = "reject-tracker-and-partition-foreign"
-            }
-            EnableTrackingProtection = @{
+            EnableTrackingProtection = [ordered]@{
                 Value = $true
-                Locked = $true
-                Cryptomining = $true
                 Fingerprinting = $true
+                Cryptomining = $true
+                Locked = $true
             }
-            DNSOverHTTPS = @{
-                Enabled = $true
-                ProviderURL = "https://cloudflare-dns.com/dns-query"
+            Cookies = [ordered]@{
+                Behavior = 'reject-tracker-and-partition-foreign'
+                BehaviorPrivateBrowsing = 'reject-tracker-and-partition-foreign'
             }
-            HardwareAcceleration = $true
+            Preferences = [ordered]@{
+                'browser.tabs.loadBookmarksInTabs' = [ordered]@{ Value = $true; Status = 'locked' }
+                'browser.tabs.loadBookmarksInBackground' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.shell.checkDefaultBrowser' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.newtabpage.enabled' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.startup.homepage' = [ordered]@{ Value = 'about:blank'; Status = 'locked' }
+                'browser.urlbar.suggest.quicksuggest.sponsored' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.urlbar.suggest.quicksuggest.nonsponsored' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.urlbar.trending.featureGate' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.urlbar.weather.featureGate' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.urlbar.pocket.featureGate' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.ml.chat.enabled' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.ml.chat.sidebar' = [ordered]@{ Value = $false; Status = 'locked' }
+                'browser.translations.enable' = [ordered]@{ Value = $true; Status = 'default' }
+                'media.peerconnection.ice.default_address_only' = [ordered]@{ Value = $true; Status = 'locked' }
+                'network.trr.mode' = [ordered]@{ Value = 5; Status = 'locked' }
+            }
         }
     }
-    
-    try {
-        $json = $policiesContent | ConvertTo-Json -Depth 10
-        [System.IO.File]::WriteAllText($policiesPath, $json, [System.Text.Encoding]::UTF8)
-        Write-Log "创建 policies.json" "SUCCESS"
-    } catch {
-        Write-Log "创建 policies.json 失败: $_" "ERROR"
-    }
-    
-    # user.js（高级配置）
-    $profilesDir = "$env:APPDATA\Mozilla\Firefox\Profiles"
-    if ($BrowserKey -eq "LibreWolf") {
-        $profilesDir = "$env:APPDATA\LibreWolf\Profiles"
-    } elseif ($BrowserKey -eq "Zen Browser") {
-        $profilesDir = "$env:APPDATA\zen\Profiles"
-    }
-    
-    # v14.12: 添加Profiles目录不存在的警告
-    if (-not (Test-Path $profilesDir)) {
-        Write-Log "未找到 $BrowserKey 配置目录（$profilesDir），需要先启动一次浏览器后重新运行脚本" "WARNING"
+}
+
+function Add-FirefoxExtensionSettings {
+    param([object]$PolicyObject, [string]$BrowserName)
+
+    $enabled = @($ExtensionConfig.firefox_addons | Where-Object { $_.browsers -contains $BrowserName })
+    if ($enabled.Count -eq 0) {
         return
     }
-    
-    if (Test-Path $profilesDir) {
-        $profiles = Get-ChildItem -Path $profilesDir -Directory -ErrorAction SilentlyContinue
-        
-        if ($profiles.Count -eq 0) {
-            Write-Log "未找到 $BrowserKey 配置文件，需要先启动一次浏览器后重新运行脚本" "WARNING"
+
+    $settings = [ordered]@{}
+    foreach ($ext in $enabled) {
+        if ([string]::IsNullOrWhiteSpace($ext.id) -or [string]::IsNullOrWhiteSpace($ext.install_url) -or $ext.install_url -notmatch '^https://') {
+            Write-Warn "Skipping invalid Firefox-family extension entry '$($ext.name)' for $BrowserName."
+            continue
         }
-        
-        foreach ($profile in $profiles) {
-            $userJsPath = Join-Path $profile.FullName "user.js"
-            
-            # Zen Browser 使用更自然的语言格式（带 q 值）
-            $langConfig = if ($BrowserKey -eq "Zen Browser") {
-                "user_pref(`"intl.accept_languages`", `"$lang,en-US;q=0.9,en;q=0.8`");"
-            } else {
-                "user_pref(`"intl.accept_languages`", `"$lang, en-US, en`");"
-            }
-            
-            $userJsContent = @"
-// ===== v14.3 实用版反检测配置 =====
-
-// ===== 温和的指纹保护 =====
-user_pref("privacy.trackingprotection.fingerprinting.enabled", true);
-user_pref("privacy.trackingprotection.enabled", true);
-user_pref("privacy.trackingprotection.pbmode.enabled", true);
-user_pref("privacy.trackingprotection.socialtracking.enabled", true);
-
-// ===== WebRTC IP防护（不完全禁用）=====
-user_pref("media.peerconnection.enabled", true); 
-user_pref("media.peerconnection.ice.default_address_only", true);  // 但防止IP泄露
-user_pref("media.peerconnection.ice.no_host", true);
-user_pref("media.peerconnection.ice.proxy_only_if_behind_proxy", true);
-
-// ===== 书签在新标签页打开 =====
-user_pref("browser.tabs.loadBookmarksInTabs", true); 
-user_pref("browser.tabs.loadBookmarksInBackground", false); 
-
-// ===== 地理位置和传感器（不完全禁用）=====
-// geo.enabled 和 device.sensors.enabled 不设置，让网站可以请求权限
-// v14.9: 删除 - 负优化，破坏地理位置功能
-user_pref("media.navigator.enabled", true);
-
-// ===== Cookie 策略 =====
-user_pref("network.cookie.cookieBehavior", 5);
-user_pref("network.cookie.lifetimePolicy", 0);
-// v14.11: 删除 browser.cache.offline.enable - 虚假优化（Firefox 130+已移除）
-user_pref("privacy.clearOnShutdown.cookies", false);
-user_pref("privacy.clearOnShutdown.cache", false);
-user_pref("privacy.clearOnShutdown.sessions", false);
-user_pref("privacy.clearOnShutdown.offlineApps", false);
-
-// ===== Referer 控制 =====
-// v14.9: 已删除 XOriginTrimmingPolicy - 负优化，破坏登录/支付/SSO
-
-// ===== DNS-over-HTTPS =====
-user_pref("network.trr.mode", 2); 
-user_pref("network.trr.uri", "https://cloudflare-dns.com/dns-query");
-
-// ===== 语言设置 =====
-$langConfig
-user_pref("intl.locale.requested", "$lang");
-user_pref("intl.locale.matchOS", false);
-user_pref("general.useragent.locale", "$lang");
-
-// ===== 电池 API =====
-// v14.11: 删除 dom.battery.enabled - 虚假优化（Firefox 131+已移除）
-
-// ===== 遥测 =====
-user_pref("toolkit.telemetry.enabled", false);
-user_pref("toolkit.telemetry.unified", false);
-user_pref("datareporting.healthreport.uploadEnabled", false);
-
-// ===== 内容拦截和隐私增强 (v13.1) =====
-user_pref("browser.contentblocking.category", "strict");
-user_pref("privacy.donottrackheader.enabled", true);
-
-"@
-            
-            try {
-                [System.IO.File]::WriteAllText($userJsPath, $userJsContent, [System.Text.Encoding]::UTF8)
-                Write-Log "创建 user.js: $($profile.Name)" "SUCCESS"
-                # v14.9: 添加重启提示
-                $prefsPath = Join-Path $profile.FullName "prefs.js"
-                if (Test-Path $prefsPath) {
-                    Write-Log "检测到已有配置文件，user.js 需要重启浏览器后生效" "WARNING"
-                }
-            } catch {
-                Write-Log "创建 user.js 失败: $_" "WARNING"
-            }
+        $settings[[string]$ext.id] = [ordered]@{
+            installation_mode = 'force_installed'
+            install_url = [string]$ext.install_url
         }
+    }
+
+    if ($settings.Count -gt 0) {
+        $PolicyObject.policies.ExtensionSettings = $settings
     }
 }
 
-# ===== 生成启动脚本 =====
-# v14.3: 删除启动脚本生成功能（用户要求不使用启动器）
+function Set-FirefoxPolicies {
+    param([object]$Browser)
 
+    if (-not (Test-Path -LiteralPath $Browser.InstallRoot)) {
+        Write-Info "$($Browser.Name) install root not found; skipping policies.json."
+        return
+    }
 
-# ===== 主流程 =====
-Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  多浏览器反检测优化工具 v14.25" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "  作者: Kiro (AI Development Environment)" -ForegroundColor Cyan
-Write-Host "  日期: 2026-05-18" -ForegroundColor Cyan
-Write-Host "  更新: 修复1个BUG（$userLocalAppData硬编码路径）" -ForegroundColor Cyan
-Write-Host "========================================`n" -ForegroundColor Green
+    $distribution = Join-Path $Browser.InstallRoot 'distribution'
+    $policyPath = Join-Path $distribution 'policies.json'
+    $policyObject = New-FirefoxPolicies -Locale $Browser.Locale
+    Add-FirefoxExtensionSettings -PolicyObject $policyObject -BrowserName $Browser.Name
 
-Write-Log "优化日志保存至: $logFile" "INFO"
+    $programRoots = @($env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    $underProgramFiles = @($programRoots | Where-Object { $Browser.InstallRoot.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
+    if ((-not $DryRun) -and $underProgramFiles -and (-not $IsAdmin)) {
+        Write-Warn "$($Browser.Name) policies.json is under Program Files. Current shell is not elevated; distribution policy write skipped."
+        return
+    }
 
-# 检测浏览器
-$detectedBrowsers = Get-InstalledBrowsers
+    if (-not $DryRun) {
+        New-Item -ItemType Directory -Path $distribution -Force | Out-Null
+    }
+    Backup-File -Path $policyPath
 
-# 显示选择菜单
-Write-Host "`n检测到以下浏览器:" -ForegroundColor Cyan
-$browserList = @($detectedBrowsers.Keys | Sort-Object)  # v14.9: 固定顺序
-for ($i = 0; $i -lt $browserList.Count; $i++) {
-    $key = $browserList[$i]
-    Write-Host "  [$i] $($detectedBrowsers[$key].Name)" -ForegroundColor Yellow
+    if ($DryRun) {
+        Write-Change "Would update $policyPath"
+    }
+    else {
+        $policyObject | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $policyPath -Encoding UTF8
+        Write-Change "Updated $policyPath"
+    }
 }
-Write-Host "  [A] 优化全部浏览器" -ForegroundColor Green
 
-$choice = Read-Host "`n请选择要优化的浏览器（输入编号，多个用逗号分隔，或输入 A 优化全部）"
+function Set-FirefoxUserJs {
+    param([object]$Browser)
 
-# 处理选择
-$selectedBrowsers = @{}
-if ($choice -eq "A" -or $choice -eq "a") {
-    $selectedBrowsers = $detectedBrowsers
-    Write-Log "用户选择: 优化全部浏览器" "INFO"
-} else {
-    $indices = $choice -split ',' | ForEach-Object { $_.Trim() }
-    foreach ($index in $indices) {
-        if ($index -match '^\d+$' -and [int]$index -lt $browserList.Count) {
-            $key = $browserList[[int]$index]
-            $selectedBrowsers[$key] = $detectedBrowsers[$key]
+    if (-not $ApplyProfilePreferences -or -not (Test-Path -LiteralPath $Browser.ProfileRoot)) {
+        return
+    }
+
+    if (Test-BrowserRunning -ProcessNames $Browser.ProcessNames) {
+        Write-Warn "$($Browser.Name) is running. user.js edits skipped; close it and run again for profile cleanup."
+        return
+    }
+
+    $lines = @(
+        '// Managed by Multi Browser Clean Policy Toolkit',
+        'user_pref("browser.tabs.loadBookmarksInTabs", true);',
+        'user_pref("browser.tabs.loadBookmarksInBackground", false);',
+        'user_pref("browser.shell.checkDefaultBrowser", false);',
+        'user_pref("browser.startup.homepage", "about:blank");',
+        'user_pref("browser.startup.page", 0);',
+        'user_pref("browser.newtabpage.enabled", false);',
+        'user_pref("browser.newtabpage.activity-stream.showSponsored", false);',
+        'user_pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);',
+        'user_pref("browser.newtabpage.activity-stream.feeds.section.topstories", false);',
+        'user_pref("browser.urlbar.suggest.quicksuggest.sponsored", false);',
+        'user_pref("browser.urlbar.trending.featureGate", false);',
+        'user_pref("browser.urlbar.weather.featureGate", false);',
+        'user_pref("browser.urlbar.pocket.featureGate", false);',
+        'user_pref("privacy.trackingprotection.enabled", true);',
+        'user_pref("privacy.trackingprotection.cryptomining.enabled", true);',
+        'user_pref("privacy.trackingprotection.fingerprinting.enabled", true);',
+        'user_pref("media.peerconnection.ice.default_address_only", true);',
+        'user_pref("network.trr.mode", 5);',
+        'user_pref("browser.translations.enable", true);'
+    )
+
+    foreach ($profile in Get-ChildItem -LiteralPath $Browser.ProfileRoot -Directory -ErrorAction SilentlyContinue) {
+        $userJs = Join-Path $profile.FullName 'user.js'
+        Backup-File -Path $userJs
+        if ($DryRun) {
+            Write-Change "Would update $userJs"
+        }
+        else {
+            Set-Content -LiteralPath $userJs -Value $lines -Encoding UTF8
+            Write-Change "Updated $userJs"
         }
     }
-    Write-Log "用户选择: $($selectedBrowsers.Count) 个浏览器" "INFO"
 }
 
-if ($selectedBrowsers.Count -eq 0) {
-    Write-Log "未选择任何浏览器，退出" "ERROR"
-    exit 1
+Write-Info "Running as user: $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+Write-Info "Elevated: $IsAdmin"
+Write-Info "Dry run: $DryRun"
+Write-Info "HKLM machine policies: $ApplyMachinePolicies"
+Write-Info "Extension config: $ExtensionConfigPath"
+
+Initialize-BrowserDetection
+
+foreach ($browser in $ChromiumBrowsers) {
+    if ($OnlyInstalled -and -not $browser.Installed) {
+        Write-Info "$($browser.Name) not detected; skipped because -OnlyInstalled was specified."
+        continue
+    }
+    Set-ChromiumPolicies -Browser $browser
+    Set-ChromiumProfilePreferences -Browser $browser
 }
 
-# 优化浏览器
-foreach ($key in $selectedBrowsers.Keys) {
-    $browser = $selectedBrowsers[$key]
-    
-    if ($browser.Type -eq "Chromium") {
-        Set-ChromiumAdvancedConfig -BrowserKey $key -BrowserInfo $browser
-    } elseif ($browser.Type -eq "Firefox") {
-        Set-FirefoxAdvancedConfig -BrowserKey $key -BrowserInfo $browser
+if (-not $OnlyInstalled -or $Opera.Installed) {
+    Set-ChromiumProfilePreferences -Browser $Opera
+}
+else {
+    Write-Info "Opera not detected; skipped because -OnlyInstalled was specified."
+}
+Write-Warn "Opera registry force-install policy is intentionally skipped because Opera does not document Chrome/Edge-compatible Windows enterprise policy support."
+
+foreach ($browser in $FirefoxBrowsers) {
+    if ($OnlyInstalled -and -not $browser.Installed) {
+        Write-Info "$($browser.Name) not detected; skipped because -OnlyInstalled was specified."
+        continue
+    }
+    Set-FirefoxPolicies -Browser $browser
+    Set-FirefoxUserJs -Browser $browser
+}
+
+Write-Warn "Chromium-family browsers do not expose an official policy to make native bookmark-bar clicks open in a new foreground tab. Firefox, LibreWolf, and Zen are configured for this through Mozilla preferences."
+
+Write-Host ''
+Write-Host "Summary"
+Write-Host "-------"
+Write-Host "Changes: $($Script:Changes.Count)"
+Write-Host "Warnings: $($Script:Warnings.Count)"
+Write-Host "Backup root: $BackupRoot"
+
+if ($Script:Warnings.Count -gt 0) {
+    Write-Host ''
+    Write-Host "Warnings"
+    foreach ($warning in $Script:Warnings) {
+        Write-Host "- $warning"
     }
 }
-
-# 生成启动脚本
-# v14.3: 删除启动脚本生成调用
-
-# 完成
-Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  优化完成！" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
-Write-Log "成功优化 $($selectedBrowsers.Count) 个浏览器" "SUCCESS"
-Write-Log "日志文件: $logFile" "INFO"
-
-# Opera 特别提示
-if ($selectedBrowsers.ContainsKey("Opera")) {
-    Write-Host "`n⚠️  Opera 用户必读：" -ForegroundColor Yellow
-    Write-Host "   Opera 的 VPN/News/Turbo 无法通过启动参数禁用，必须手动配置：" -ForegroundColor Yellow
-    Write-Host "" -ForegroundColor Yellow
-    Write-Host "   1. 启动 Opera 后，访问 opera://settings" -ForegroundColor Cyan
-    Write-Host "   2. 隐私和安全 → 关闭 '启用 VPN'" -ForegroundColor Cyan
-    Write-Host "   3. 启动页 → 关闭 '在启动页显示新闻'" -ForegroundColor Cyan
-    Write-Host "   4. 高级 → 关闭 'Opera Turbo'" -ForegroundColor Cyan
-    Write-Host "   5. 搜索 → 将默认搜索引擎改为 Google" -ForegroundColor Cyan
-    Write-Host "" -ForegroundColor Yellow
-    Write-Host "   验证策略：访问 opera://policy/ 确认策略已生效" -ForegroundColor Yellow
-    Write-Host "   扩展安装：Opera 扩展需要从 addons.opera.com 安装（不兼容 Chrome 商店）" -ForegroundColor Yellow
-}
-
