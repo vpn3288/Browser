@@ -2,7 +2,8 @@
 param(
     [switch]$RequireMachinePolicy,
     [switch]$StrictProfilePreferences,
-    [switch]$Quiet
+    [switch]$Quiet,
+    [switch]$Detailed
 )
 
 Set-StrictMode -Version Latest
@@ -46,6 +47,120 @@ function Convert-ToText {
         return ($Value -join ', ')
     }
     return [string]$Value
+}
+
+function Convert-JsonNodeToPowerShellObject {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $object = [pscustomobject]@{}
+        foreach ($key in $Value.Keys) {
+            $object | Add-Member -MemberType NoteProperty -Name ([string]$key) -Value (Convert-JsonNodeToPowerShellObject -Value $Value[$key]) -Force
+        }
+        return $object
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+        $items = New-Object System.Collections.ArrayList
+        foreach ($item in $Value) {
+            [void]$items.Add((Convert-JsonNodeToPowerShellObject -Value $item))
+        }
+        return $items.ToArray()
+    }
+
+    return $Value
+}
+
+function ConvertFrom-BrowserJsonText {
+    param([string]$Raw)
+
+    try {
+        return $Raw | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        $primaryReason = ($_.Exception.Message -split "(`r`n|`n|`r)")[0]
+        try {
+            Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop
+            $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+            $serializer.MaxJsonLength = [int]::MaxValue
+            $parsed = $serializer.DeserializeObject($Raw)
+            return Convert-JsonNodeToPowerShellObject -Value $parsed
+        }
+        catch {
+            $fallbackReason = ($_.Exception.Message -split "(`r`n|`n|`r)")[0]
+            throw "ConvertFrom-Json failed: $primaryReason; JavaScriptSerializer fallback failed: $fallbackReason"
+        }
+    }
+}
+
+function Get-ResultCategory {
+    param([object]$Result)
+
+    $text = "$($Result.Scope) $($Result.Name)"
+    switch -Regex ($text) {
+        'KnownLimit' { return 'Known limits' }
+        'Extension|force-install' { return 'Extensions' }
+        'installed executable|policies\.json parse|profile preferences|profile count|profile root|JSON' { return 'Install/profile health' }
+        'Bookmark|FavoritesBar|DisplayBookmarksToolbar|ShowHomeButton|loadBookmarks' { return 'Bookmarks/home button' }
+        'Homepage|NewTabPage|RestoreOnStartup|startup\.homepage|newtabpage|home\.|session\.restore' { return 'Blank home/start/new-tab' }
+        'BackgroundMode|StartupBoost|BackgroundAppUpdate|process count|background' { return 'No background runtime' }
+        'Telemetry|Metrics|UserFeedback|UrlKeyed|Personalization|Studies|P3A|StatsPing|WebDiscovery|usage_personalized' { return 'Telemetry off' }
+        'Tracking|Fingerprinting|Cryptomining|PrivacySandbox|Cookies|WebRtc|Geolocation|Notifications|Payment|DnsOverHttps|Quic|trr|DoNotTrack' { return 'Privacy controls' }
+        'Promotional|Recommendations|FirstRun|DefaultBrowser|Campaign|Content|QuickLinks|Sidebar|Shopping|Wallet|Rewards|Collections|Workspaces|Insider|VisualSearch|News|VPN|Talk|AIChat|Pocket|UserMessaging|FirefoxSuggest|Sponsored|urlbar|weather|trending|ml\.chat|IPFS|TorDisabled|check_default_browser' { return 'Clean vendor UI' }
+        'SafeBrowsing|SmartScreen|HardwareAcceleration|Password|Autofill|Signin|OfferToSaveLogins|FormHistory|translations|translate' { return 'Useful features kept' }
+        default { return 'Other' }
+    }
+}
+
+function Format-ResultLine {
+    param([object]$Item)
+
+    $line = "  [$($Item.Scope)] $($Item.Name) expected=$(Convert-ToText $Item.Expected) actual=$(Convert-ToText $Item.Actual)"
+    if (-not [string]::IsNullOrWhiteSpace($Item.Details)) {
+        $line += " :: $($Item.Details)"
+    }
+    return $line
+}
+
+function Write-ResultSummary {
+    param(
+        [string]$Title,
+        [object[]]$Items,
+        [scriptblock]$KeySelector
+    )
+
+    Write-Host "${Title}:"
+    $buckets = @{}
+    foreach ($item in $Items) {
+        $key = [string](& $KeySelector $item)
+        if ([string]::IsNullOrWhiteSpace($key)) {
+            $key = '<unknown>'
+        }
+        if (-not $buckets.ContainsKey($key)) {
+            $buckets[$key] = New-Object System.Collections.ArrayList
+        }
+        [void]$buckets[$key].Add($item)
+    }
+
+    if ($buckets.Count -eq 0) {
+        Write-Host '  none'
+        Write-Host ''
+        return
+    }
+
+    foreach ($key in @($buckets.Keys | Sort-Object)) {
+        $group = @($buckets[$key])
+        $pass = @($group | Where-Object { $_.Level -eq 'PASS' }).Count
+        $warn = @($group | Where-Object { $_.Level -eq 'WARN' }).Count
+        $fail = @($group | Where-Object { $_.Level -eq 'FAIL' }).Count
+        $status = if ($fail -gt 0) { 'FAIL' } elseif ($warn -gt 0) { 'WARN' } else { 'PASS' }
+        Write-Host ("  {0,-28} {1,5} pass={2,-4} warn={3,-3} fail={4,-3}" -f $key, $status, $pass, $warn, $fail)
+    }
+    Write-Host ''
 }
 
 function Test-Value {
@@ -144,12 +259,12 @@ function Read-JsonFile {
     }
 
     try {
-        $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+        $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
         if ([string]::IsNullOrWhiteSpace($raw)) {
             Add-Result -Level WARN -Scope $Scope -Name 'JSON empty' -Expected 'valid JSON' -Actual $Path
             return $null
         }
-        return $raw | ConvertFrom-Json -ErrorAction Stop
+        return ConvertFrom-BrowserJsonText -Raw $raw
     }
     catch {
         $reason = ($_.Exception.Message -split "(`r`n|`n|`r)")[0]
@@ -601,9 +716,13 @@ if (-not $Quiet) {
     Write-Host "Elevated: $(Test-IsAdmin)"
     Write-Host "RequireMachinePolicy: $RequireMachinePolicy"
     Write-Host "StrictProfilePreferences: $StrictProfilePreferences"
+    Write-Host "Detailed: $Detailed"
     Write-Host ''
     Write-Host "Summary: PASS=$passCount WARN=$warnCount FAIL=$failCount"
     Write-Host ''
+
+    Write-ResultSummary -Title 'Browser summary' -Items $script:Results -KeySelector { param($item) $item.Scope }
+    Write-ResultSummary -Title 'Category summary' -Items $script:Results -KeySelector { param($item) Get-ResultCategory -Result $item }
 
     foreach ($level in @('FAIL','WARN')) {
         $items = @($script:Results | Where-Object Level -eq $level)
@@ -613,19 +732,23 @@ if (-not $Quiet) {
         }
         else {
             foreach ($item in $items) {
-                $line = "  [$($item.Scope)] $($item.Name) expected=$(Convert-ToText $item.Expected) actual=$(Convert-ToText $item.Actual)"
-                if (-not [string]::IsNullOrWhiteSpace($item.Details)) {
-                    $line += " :: $($item.Details)"
-                }
-                Write-Host $line
+                Write-Host (Format-ResultLine -Item $item)
             }
         }
         Write-Host ''
     }
 
-    Write-Host 'PASS samples:'
-    foreach ($item in @($script:Results | Where-Object Level -eq 'PASS' | Select-Object -First 20)) {
-        Write-Host "  [$($item.Scope)] $($item.Name)"
+    if ($Detailed) {
+        Write-Host 'All verification items:'
+        foreach ($item in @($script:Results | Sort-Object Scope, Name, Level)) {
+            Write-Host "  $($item.Level) $(Format-ResultLine -Item $item)"
+        }
+    }
+    else {
+        Write-Host 'PASS samples:'
+        foreach ($item in @($script:Results | Where-Object Level -eq 'PASS' | Select-Object -First 20)) {
+            Write-Host "  [$($item.Scope)] $($item.Name)"
+        }
     }
 }
 

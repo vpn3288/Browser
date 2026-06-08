@@ -207,6 +207,54 @@ function Merge-PolicyLists {
     return $result.ToArray()
 }
 
+function Convert-JsonNodeToPowerShellObject {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $object = [pscustomobject]@{}
+        foreach ($key in $Value.Keys) {
+            $object | Add-Member -MemberType NoteProperty -Name ([string]$key) -Value (Convert-JsonNodeToPowerShellObject -Value $Value[$key]) -Force
+        }
+        return $object
+    }
+
+    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+        $items = New-Object System.Collections.ArrayList
+        foreach ($item in $Value) {
+            [void]$items.Add((Convert-JsonNodeToPowerShellObject -Value $item))
+        }
+        return $items.ToArray()
+    }
+
+    return $Value
+}
+
+function ConvertFrom-BrowserJsonText {
+    param([string]$Raw)
+
+    try {
+        return $Raw | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        $primaryReason = ($_.Exception.Message -split "(`r`n|`n|`r)")[0]
+        try {
+            Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop
+            $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+            $serializer.MaxJsonLength = [int]::MaxValue
+            $parsed = $serializer.DeserializeObject($Raw)
+            return Convert-JsonNodeToPowerShellObject -Value $parsed
+        }
+        catch {
+            $fallbackReason = ($_.Exception.Message -split "(`r`n|`n|`r)")[0]
+            throw "ConvertFrom-Json failed: $primaryReason; JavaScriptSerializer fallback failed: $fallbackReason"
+        }
+    }
+}
+
 function New-Policy {
     param(
         [string]$Name,
@@ -562,7 +610,7 @@ function Get-EnabledExtensionConfig {
         return $result
     }
 
-    $config = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    $config = ConvertFrom-BrowserJsonText -Raw (Get-Content -LiteralPath $Path -Raw -Encoding UTF8)
     foreach ($section in @($result.Keys)) {
         if ($config.PSObject.Properties.Name -contains $section) {
             $result[$section] = @($config.$section | Where-Object { $_.enabled -eq $true })
@@ -644,12 +692,26 @@ function Set-JsonPathValue {
     $cursor | Add-Member -MemberType NoteProperty -Name $leaf -Value $Value -Force
 }
 
+function Set-Utf8NoBomFile {
+    param([string]$Path, [object]$Value)
+
+    if ($Value -is [array]) {
+        $text = ($Value -join [Environment]::NewLine) + [Environment]::NewLine
+    }
+    else {
+        $text = [string]$Value
+    }
+
+    $encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $text, $encoding)
+}
+
 function Save-JsonFile {
     param([string]$Path, [object]$Object)
 
     $json = $Object | ConvertTo-Json -Depth 100
     if (-not $DryRun) {
-        Set-Content -LiteralPath $Path -Value $json -Encoding UTF8
+        Set-Utf8NoBomFile -Path $Path -Value $json
     }
 }
 
@@ -661,11 +723,11 @@ function Read-JsonObjectFile {
     }
 
     try {
-        $raw = Get-Content -LiteralPath $Path -Raw
+        $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
         if ([string]::IsNullOrWhiteSpace($raw)) {
             return [pscustomobject]@{}
         }
-        $parsed = $raw | ConvertFrom-Json
+        $parsed = ConvertFrom-BrowserJsonText -Raw $raw
         if ($null -eq $parsed) {
             return [pscustomobject]@{}
         }
@@ -716,11 +778,11 @@ function Initialize-PreferenceFile {
 
     New-Item -ItemType Directory -Path $defaultProfile -Force | Out-Null
     if (-not (Test-Path -LiteralPath $prefsPath)) {
-        [pscustomobject]@{} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $prefsPath -Encoding UTF8
+        Set-Utf8NoBomFile -Path $prefsPath -Value ([pscustomobject]@{} | ConvertTo-Json -Depth 10)
         Write-Change "Created $prefsPath"
     }
     if (-not (Test-Path -LiteralPath $localState)) {
-        [pscustomobject]@{} | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $localState -Encoding UTF8
+        Set-Utf8NoBomFile -Path $localState -Value ([pscustomobject]@{} | ConvertTo-Json -Depth 10)
         Write-Change "Created $localState"
     }
 }
@@ -948,7 +1010,7 @@ function Set-FirefoxPolicies {
         Write-Change "Would update $policyPath"
     }
     else {
-        $policyObject | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $policyPath -Encoding UTF8
+        Set-Utf8NoBomFile -Path $policyPath -Value ($policyObject | ConvertTo-Json -Depth 100)
         Write-Change "Updated $policyPath"
     }
 }
@@ -995,7 +1057,7 @@ function Set-FirefoxUserJs {
             Write-Change "Would update $userJs"
         }
         else {
-            Set-Content -LiteralPath $userJs -Value $lines -Encoding UTF8
+            Set-Utf8NoBomFile -Path $userJs -Value $lines
             Write-Change "Updated $userJs"
         }
     }

@@ -42,6 +42,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy
 ```
 
+输出每个浏览器和每类优化项目的完整明细：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy -Detailed
+```
+
 ## 参数
 
 - `-DryRun`：只预览，不写入。
@@ -49,6 +55,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-
 - `-OnlyInstalled`：只处理检测到已安装的浏览器。
 - `-ApplyProfilePreferences:$false`：只写官方策略，跳过直接编辑 Profile 偏好文件。
 - `-ExtensionConfigPath <path>`：使用自定义扩展配置文件。
+
+验证脚本支持 `-RequireMachinePolicy`、`-StrictProfilePreferences`、`-Detailed` 和 `-Quiet`。其中 `-Detailed` 会把所有验证项按浏览器和优化类别完整列出，适合重装或大版本升级后复查。
 
 脚本在管理员 PowerShell 中会自动写 HKLM 机器策略；非管理员 PowerShell 中会跳过 HKLM，并尽量写 HKCU 和用户配置。
 如果 Windows 权限拒绝写入 `HKCU\SOFTWARE\Policies`，请在管理员 PowerShell 里重新运行优化脚本。
