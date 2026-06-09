@@ -2,11 +2,111 @@
 
 Windows 11 多浏览器清洁、隐私、安全、稳定性优化脚本。
 
-这个仓库只做一件事：把常用浏览器尽量调成干净、安静、少打扰、少遥测、少后台常驻的浏览器。脚本不增加启动器，不做代理配置，不做流量伪装，不做账号风控绕过，不做虚假指纹或反检测伪装。
+这个仓库只优化浏览器本身：关闭新闻、广告、促销、默认浏览器提示、后台运行、遥测和不必要的厂商功能；默认打开书签栏；主页和启动页尽量设为空白页；修正扩展强制安装策略。脚本不增加启动器，不配置代理，不做流量伪装，不做虚假指纹或反检测伪装。
+
+## 小白直接复制
+
+先关闭所有浏览器。
+
+然后用管理员身份打开 PowerShell 7 或 Windows PowerShell。看到类似下面这样就可以粘贴命令：
+
+```text
+PS C:\Users\Newby>
+```
+
+复制下面整段，不要只复制其中一行：
+
+```powershell
+$Repo = "C:\Users\Newby\Documents\浏览器优化\Browser-main"
+$OptimizeScript = Join-Path $Repo "scripts\deployment\OPTIMIZE_ALL_v14.25.ps1"
+$VerifyScript = Join-Path $Repo "scripts\deployment\Verify-BrowserOptimization.ps1"
+$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $IsAdmin) { throw "当前 PowerShell 不是管理员。请右键 PowerShell，选择“以管理员身份运行”，然后重新粘贴这整段命令。" }
+if (-not (Test-Path -LiteralPath $Repo)) { throw "找不到仓库目录：$Repo" }
+if (-not (Test-Path -LiteralPath $OptimizeScript)) { throw "找不到优化脚本：$OptimizeScript" }
+if (-not (Test-Path -LiteralPath $VerifyScript)) { throw "找不到验证脚本：$VerifyScript" }
+$RunningBrowsers = @(Get-Process -Name chrome,msedge,brave,vivaldi,opera,firefox,librewolf,zen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique)
+if ($RunningBrowsers.Count -gt 0) { throw "请先关闭这些浏览器进程，然后重新粘贴这整段命令：$($RunningBrowsers -join ', ')" }
+$PowerShellExe = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $PowerShellExe) { $PowerShellExe = (Get-Command powershell -ErrorAction Stop).Source }
+Set-Location -LiteralPath $Repo
+& $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $OptimizeScript -OnlyInstalled
+if ($LASTEXITCODE -ne 0) { throw "优化脚本运行失败，退出码：$LASTEXITCODE" }
+& $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $VerifyScript -RequireMachinePolicy -OnlyInstalled -Detailed
+if ($LASTEXITCODE -ne 0) { throw "验证没有通过，退出码：$LASTEXITCODE" }
+```
+
+这段命令会做三件事：
+
+- 自动进入正确仓库目录。
+- 优化本机已经安装的浏览器。
+- 运行详细验证，确认优化是否真的生效。
+
+重点看最后的结果：
+
+```text
+FAIL=0
+```
+
+只要 `FAIL=0`，就是没有硬失败。`WARN` 是提醒，不一定是错误，下面有解释。
+
+## 只预览不修改
+
+如果你想先看看脚本准备做什么，复制这段：
+
+```powershell
+$Repo = "C:\Users\Newby\Documents\浏览器优化\Browser-main"
+$OptimizeScript = Join-Path $Repo "scripts\deployment\OPTIMIZE_ALL_v14.25.ps1"
+$PowerShellExe = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $PowerShellExe) { $PowerShellExe = (Get-Command powershell -ErrorAction Stop).Source }
+if (-not (Test-Path -LiteralPath $OptimizeScript)) { throw "找不到优化脚本：$OptimizeScript" }
+Set-Location -LiteralPath $Repo
+& $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $OptimizeScript -OnlyInstalled -DryRun
+```
+
+`-DryRun` 只预览，不写注册表，不改浏览器配置文件。
+
+## 只重新验证
+
+如果你已经优化过，只想重新检查，复制这段：
+
+```powershell
+$Repo = "C:\Users\Newby\Documents\浏览器优化\Browser-main"
+$VerifyScript = Join-Path $Repo "scripts\deployment\Verify-BrowserOptimization.ps1"
+$PowerShellExe = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $PowerShellExe) { $PowerShellExe = (Get-Command powershell -ErrorAction Stop).Source }
+if (-not (Test-Path -LiteralPath $VerifyScript)) { throw "找不到验证脚本：$VerifyScript" }
+$RunningBrowsers = @(Get-Process -Name chrome,msedge,brave,vivaldi,opera,firefox,librewolf,zen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique)
+if ($RunningBrowsers.Count -gt 0) { throw "请先关闭这些浏览器进程，然后重新粘贴这整段命令：$($RunningBrowsers -join ', ')" }
+Set-Location -LiteralPath $Repo
+& $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $VerifyScript -RequireMachinePolicy -OnlyInstalled -Detailed
+```
+
+## 为什么旧命令不能用
+
+如果你在这里：
+
+```text
+PS C:\Users\Newby>
+```
+
+直接运行下面这种命令会失败：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1
+```
+
+原因是 `.\scripts\deployment\...` 是相对路径。它会从当前目录 `C:\Users\Newby` 下面找脚本，但脚本实际在：
+
+```text
+C:\Users\Newby\Documents\浏览器优化\Browser-main\scripts\deployment
+```
+
+所以 README 现在给的是完整复制块，会自动进入正确目录，并且直接使用脚本的绝对路径。
 
 ## 支持浏览器
 
-当前按 9 个浏览器维护：
+脚本按 9 个浏览器维护：
 
 - Google Chrome
 - Chromium
@@ -18,87 +118,17 @@ Windows 11 多浏览器清洁、隐私、安全、稳定性优化脚本。
 - LibreWolf
 - Zen Browser
 
-## 快速开始
-
-请先进入仓库根目录。很多运行失败都是因为当前目录不对。
-
-正确目录示例：
-
-```powershell
-cd "C:\Users\Newby\Documents\浏览器优化\Browser-main"
-```
-
-如果你现在在 `C:\Users\Newby`，直接运行 `.\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1` 会报“文件不存在”，因为脚本不在那个目录下。
-
-推荐使用 PowerShell 7：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1
-```
-
-先预览，不写注册表、不改浏览器 Profile：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1 -DryRun
-```
-
-严格验证机器级策略和浏览器配置：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy -Detailed
-```
-
-如果你坚持使用 Windows 自带 PowerShell 5.1，把 `pwsh` 换成 `powershell` 即可。脚本已经处理了 PowerShell 5.1 读取 UTF-8 浏览器 JSON 的问题。
-
-## 管理员权限
-
-建议用管理员权限打开 PowerShell，然后进入仓库目录运行脚本。
-
-管理员模式会写入 HKLM 机器级浏览器策略，这是最稳定、最接近官方企业策略的方式。非管理员模式会跳过 HKLM，只尽量写 HKCU 和用户 Profile；如果你的系统限制了 `HKCU\SOFTWARE\Policies`，非管理员模式会出现权限警告。
-
-确认是否管理员：
-
-```powershell
-([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-```
-
-返回 `True` 才是管理员。
-
-## 常用命令
-
-只处理已安装浏览器：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1 -OnlyInstalled
-```
-
-只写当前用户，不写 HKLM：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1 -UserOnly
-```
-
-只写官方策略，跳过直接编辑浏览器 Profile：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1 -ApplyProfilePreferences:$false
-```
-
-静默验证，只看退出码：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy -Quiet
-```
+默认命令使用 `-OnlyInstalled`，意思是只优化本机已经安装的浏览器。没安装的浏览器会跳过，不会因为不存在就失败。
 
 ## 优化内容
 
-通用目标：
+通用优化：
 
 - 默认显示书签栏。
 - 显示主页按钮。
-- 主页、启动页尽量设为 `about:blank`。
+- 主页和启动页尽量设置为 `about:blank`。
 - 关闭默认浏览器提示。
-- 关闭浏览器关闭后的后台运行。
+- 关闭浏览器退出后的后台运行。
 - 关闭新闻、广告、促销、推荐、赞助内容、遥测和不必要的厂商功能。
 - 保留安全浏览、硬件加速、密码管理、自动填充、登录能力和翻译能力。
 - 避免过度优化导致网页、游戏、AI 网站、支付、登录或扩展系统不稳定。
@@ -114,7 +144,7 @@ Chromium 系浏览器：
 
 Edge 额外优化：
 
-- 关闭首启体验、默认浏览器营销提示、推荐、侧边栏、购物助手、钱包结账、Rewards、Collections、Workspaces、Visual Search 等项目。
+- 关闭首启体验、默认浏览器营销提示、推荐、侧边栏、购物助手、钱包结账、Rewards、Collections、Workspaces、Visual Search。
 - 保留 SmartScreen。
 - Tracking Prevention 使用 Balanced，兼顾隐私和网页兼容性。
 
@@ -151,8 +181,40 @@ LibreWolf 单独说明：
 - 脚本会检测 `C:\Program Files\LibreWolf\librewolf.exe` 和 `C:\Program Files (x86)\LibreWolf\librewolf.exe`。
 - 脚本会写入 `C:\Program Files\LibreWolf\distribution\policies.json`。
 - 脚本会处理 `%APPDATA%\LibreWolf\Profiles` 下的 `user.js`。
-- LibreWolf 复用 Mozilla 企业策略格式，因为 LibreWolf 本身就是 Firefox 系浏览器；这不是 Chrome/Chromium 策略，也不是假策略。
+- LibreWolf 复用 Mozilla 企业策略格式，因为 LibreWolf 本身就是 Firefox 系浏览器。
 - 如果 LibreWolf 还没有首次启动过，可能没有 Profile 目录。先启动一次 LibreWolf，再关闭，然后重新运行优化脚本即可补齐用户 Profile 优化。
+
+## 验证结果怎么看
+
+验证脚本会输出：
+
+- `PASS`：项目已按预期配置。
+- `WARN`：不是失败，但需要人工知道原因。
+- `FAIL`：优化未生效或浏览器/配置缺失。
+
+正常情况下，重点是：
+
+```text
+FAIL=0
+```
+
+常见 WARN：
+
+- `Chromium bookmark click foreground tab`：Chromium 系没有官方策略能强制书签栏左键点击在新的前台标签页打开。Firefox、LibreWolf、Zen 可以做到。
+- `Opera registry policy`：Opera 没有公开对应 Windows 企业策略，所以脚本用 Profile 偏好验证，不伪造策略。
+- `Chrome NewTabPageLocation`：Chrome 在部分非托管设备上可能忽略 `NewTabPageLocation=about:blank`，需要在 `chrome://policy` 里确认。
+- `profile root` 或 `user.js missing`：浏览器还没有首次启动创建 Profile。启动一次浏览器，关闭后再运行优化脚本。
+- `process count expected=0`：还有浏览器没关干净。关闭对应浏览器，任务管理器里确认没有残留进程，再重新验证。
+
+## 重装浏览器后的推荐流程
+
+1. 关闭所有浏览器。
+2. 用管理员身份打开 PowerShell。
+3. 复制“ 小白直接复制 ”里的整段命令并运行。
+4. 分别启动一次每个浏览器，让浏览器创建 Profile。
+5. 关闭所有浏览器。
+6. 再复制“ 小白直接复制 ”里的整段命令运行一次。
+7. 最后确认验证结果是 `FAIL=0`。
 
 ## 扩展配置
 
@@ -185,47 +247,23 @@ Firefox/LibreWolf/Zen:
 https://addons.mozilla.org/firefox/downloads/latest/<addon>/latest.xpi
 ```
 
-## 验证结果怎么看
+## 参数说明
 
-验证脚本会输出：
+优化脚本常用参数：
 
-- `PASS`：项目已按预期配置。
-- `WARN`：不是失败，但需要人工知道原因。
-- `FAIL`：优化未生效或浏览器/配置缺失。
+- `-OnlyInstalled`：只处理本机已经安装的浏览器。
+- `-DryRun`：只预览，不写入。
+- `-UserOnly`：只写当前用户策略和用户配置，不写 HKLM。
+- `-ApplyProfilePreferences:$false`：只写官方策略，跳过直接编辑 Profile 偏好文件。
+- `-ExtensionConfigPath <path>`：使用自定义扩展配置文件。
 
-推荐看这条命令：
+验证脚本常用参数：
 
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy -Detailed
-```
-
-正常情况下，重点是 `FAIL=0`。
-
-常见 WARN：
-
-- `Chromium bookmark click foreground tab`：Chromium 系没有官方策略能强制书签栏左键点击在新的前台标签页打开。Firefox、LibreWolf、Zen 可以做到。
-- `Opera registry policy`：Opera 没有公开对应 Windows 企业策略，所以脚本用 Profile 偏好验证，不伪造策略。
-- `Chrome NewTabPageLocation`：Chrome 在部分非托管设备上可能忽略 `NewTabPageLocation=about:blank`，需要在 `chrome://policy` 里确认。
-- `LibreWolf profile root`：LibreWolf 尚未首次启动创建 Profile；策略文件仍然生效，首次启动后再运行一次优化脚本即可补 user.js。
-
-## 推荐重装后流程
-
-1. 关闭所有浏览器。
-2. 以管理员身份打开 PowerShell 7。
-3. 进入仓库根目录。
-4. 运行优化脚本。
-5. 分别启动一次每个浏览器，让它们创建 Profile。
-6. 关闭所有浏览器。
-7. 再运行一次优化脚本。
-8. 运行详细验证，确认 `FAIL=0`。
-
-命令：
-
-```powershell
-cd "C:\Users\Newby\Documents\浏览器优化\Browser-main"
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1 -OnlyInstalled
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy -Detailed
-```
+- `-OnlyInstalled`：只验证本机已经安装的浏览器。
+- `-RequireMachinePolicy`：严格验证 HKLM 机器级策略。
+- `-Detailed`：输出每个浏览器和每类优化项目的完整明细。
+- `-Quiet`：静默验证，只看退出码。
+- `-StrictProfilePreferences`：把 Profile 偏好警告提升为失败，适合排错时使用。
 
 ## 备份
 
@@ -257,19 +295,19 @@ backups\<时间戳>
 
 ## 官方依据和排错
 
-官方资料整理见：
+官方资料整理：
 
 ```text
 docs/official-sources.md
 ```
 
-排错文档见：
+排错文档：
 
 ```text
 docs/troubleshooting.md
 ```
 
-历史说明和旧脚本背景见：
+历史说明和旧脚本背景：
 
 ```text
 zhubi.md

@@ -3,7 +3,8 @@ param(
     [switch]$RequireMachinePolicy,
     [switch]$StrictProfilePreferences,
     [switch]$Quiet,
-    [switch]$Detailed
+    [switch]$Detailed,
+    [switch]$OnlyInstalled
 )
 
 Set-StrictMode -Version Latest
@@ -594,6 +595,9 @@ else {
 foreach ($browser in $chromiumBrowsers) {
     $exe = Find-FirstExistingPath -Paths $browser.Candidates
     if ($null -eq $exe) {
+        if ($OnlyInstalled) {
+            continue
+        }
         Add-Result -Level FAIL -Scope $browser.Name -Name 'installed executable' -Expected 'installed' -Actual '<missing>'
     }
     else {
@@ -640,23 +644,29 @@ foreach ($browser in $chromiumBrowsers) {
 
 $operaExe = Find-FirstExistingPath -Paths $opera.Candidates
 if ($null -eq $operaExe) {
-    Add-Result -Level FAIL -Scope 'Opera' -Name 'installed executable' -Expected 'installed' -Actual '<missing>'
+    if (-not $OnlyInstalled) {
+        Add-Result -Level FAIL -Scope 'Opera' -Name 'installed executable' -Expected 'installed' -Actual '<missing>'
+    }
 }
 else {
     $version = (Get-Item -LiteralPath $operaExe).VersionInfo.ProductVersion
     Add-Result -Level PASS -Scope 'Opera' -Name 'installed executable' -Expected 'installed' -Actual "$version :: $operaExe"
-}
-$operaPrefFiles = @(Get-ChromiumPreferenceFiles -UserDataRoot $opera.UserDataRoot)
-if ($operaPrefFiles.Count -eq 0) {
-    Add-Result -Level FAIL -Scope 'Opera' -Name 'profile preferences' -Expected 'at least one Preferences file' -Actual '<missing>'
-}
-foreach ($prefFile in $operaPrefFiles) {
-    Test-ProfilePreferenceFile -Browser 'Opera' -Path $prefFile -Checks $operaProfileChecks -Required
+
+    $operaPrefFiles = @(Get-ChromiumPreferenceFiles -UserDataRoot $opera.UserDataRoot)
+    if ($operaPrefFiles.Count -eq 0) {
+        Add-Result -Level FAIL -Scope 'Opera' -Name 'profile preferences' -Expected 'at least one Preferences file' -Actual '<missing>'
+    }
+    foreach ($prefFile in $operaPrefFiles) {
+        Test-ProfilePreferenceFile -Browser 'Opera' -Path $prefFile -Checks $operaProfileChecks -Required
+    }
 }
 
 foreach ($browser in $firefoxBrowsers) {
     $exe = Find-FirstExistingPath -Paths $browser.Candidates
     if ($null -eq $exe) {
+        if ($OnlyInstalled) {
+            continue
+        }
         Add-Result -Level FAIL -Scope $browser.Name -Name 'installed executable' -Expected 'installed' -Actual '<missing>'
     }
     else {
@@ -717,6 +727,7 @@ if (-not $Quiet) {
     Write-Host "RequireMachinePolicy: $RequireMachinePolicy"
     Write-Host "StrictProfilePreferences: $StrictProfilePreferences"
     Write-Host "Detailed: $Detailed"
+    Write-Host "OnlyInstalled: $OnlyInstalled"
     Write-Host ''
     Write-Host "Summary: PASS=$passCount WARN=$warnCount FAIL=$failCount"
     Write-Host ''
