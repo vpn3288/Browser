@@ -6,7 +6,7 @@ Windows 11 多浏览器清洁、隐私、安全、稳定性优化脚本。
 
 ## 小白直接复制
 
-先关闭所有浏览器。
+这段命令会自动关闭正在运行的浏览器。运行前请先保存浏览器里的重要页面和未提交内容。
 
 然后用管理员身份打开 PowerShell 7 或 Windows PowerShell。看到类似下面这样就可以粘贴命令：
 
@@ -17,28 +17,70 @@ PS C:\Users\Newby>
 复制下面整段，不要只复制其中一行：
 
 ```powershell
+$ErrorActionPreference = "Stop"
 $Repo = "C:\Users\Newby\Documents\浏览器优化\Browser-main"
+$BrowserProcessNames = @("chrome", "msedge", "brave", "vivaldi", "opera", "opera_gx", "firefox", "librewolf", "zen")
 $OptimizeScript = Join-Path $Repo "scripts\deployment\OPTIMIZE_ALL_v14.25.ps1"
 $VerifyScript = Join-Path $Repo "scripts\deployment\Verify-BrowserOptimization.ps1"
-$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $IsAdmin) { throw "当前 PowerShell 不是管理员。请右键 PowerShell，选择“以管理员身份运行”，然后重新粘贴这整段命令。" }
+
+function Assert-Admin {
+  $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+  if (-not $IsAdmin) {
+    throw "当前 PowerShell 不是管理员。请右键 PowerShell，选择以管理员身份运行，然后重新粘贴这整段命令。"
+  }
+}
+
+function Get-BestPowerShell {
+  $Pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+  if ($Pwsh) { return $Pwsh.Source }
+  return (Get-Command powershell -ErrorAction Stop).Source
+}
+
+function Stop-BrowsersForOptimization {
+  $Processes = @(Get-Process -Name $BrowserProcessNames -ErrorAction SilentlyContinue | Sort-Object ProcessName, Id)
+  if ($Processes.Count -eq 0) { return }
+
+  Write-Host "检测到正在运行的浏览器。优化和验证前必须关闭它们：" -ForegroundColor Yellow
+  $Processes | Select-Object ProcessName, Id, MainWindowTitle | Format-Table -AutoSize
+  Write-Host "8 秒后会自动关闭以上浏览器。需要取消请立刻按 Ctrl+C。" -ForegroundColor Yellow
+  Start-Sleep -Seconds 8
+
+  $Processes | Stop-Process -Force -ErrorAction SilentlyContinue
+  Start-Sleep -Seconds 3
+
+  $Left = @(Get-Process -Name $BrowserProcessNames -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique)
+  if ($Left.Count -gt 0) {
+    throw "仍有浏览器进程没有关闭：$($Left -join ', ')。请在任务管理器里结束它们后重新运行。"
+  }
+}
+
+Assert-Admin
 if (-not (Test-Path -LiteralPath $Repo)) { throw "找不到仓库目录：$Repo" }
 if (-not (Test-Path -LiteralPath $OptimizeScript)) { throw "找不到优化脚本：$OptimizeScript" }
 if (-not (Test-Path -LiteralPath $VerifyScript)) { throw "找不到验证脚本：$VerifyScript" }
-$RunningBrowsers = @(Get-Process -Name chrome,msedge,brave,vivaldi,opera,firefox,librewolf,zen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique)
-if ($RunningBrowsers.Count -gt 0) { throw "请先关闭这些浏览器进程，然后重新粘贴这整段命令：$($RunningBrowsers -join ', ')" }
-$PowerShellExe = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
-if (-not $PowerShellExe) { $PowerShellExe = (Get-Command powershell -ErrorAction Stop).Source }
+
+$PowerShellExe = Get-BestPowerShell
 Set-Location -LiteralPath $Repo
+
+Stop-BrowsersForOptimization
+Write-Host "开始优化已安装的浏览器..." -ForegroundColor Cyan
 & $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $OptimizeScript -OnlyInstalled
-if ($LASTEXITCODE -ne 0) { throw "优化脚本运行失败，退出码：$LASTEXITCODE" }
+$OptimizeExitCode = $LASTEXITCODE
+if ($OptimizeExitCode -ne 0) { throw "优化脚本运行失败，退出码：$OptimizeExitCode" }
+
+Stop-BrowsersForOptimization
+Write-Host "开始验证优化结果..." -ForegroundColor Cyan
 & $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $VerifyScript -RequireMachinePolicy -OnlyInstalled -Detailed
-if ($LASTEXITCODE -ne 0) { throw "验证没有通过，退出码：$LASTEXITCODE" }
+$VerifyExitCode = $LASTEXITCODE
+if ($VerifyExitCode -ne 0) { throw "验证没有通过，退出码：$VerifyExitCode" }
+
+Write-Host "全部完成：验证通过，FAIL=0。" -ForegroundColor Green
 ```
 
-这段命令会做三件事：
+这段命令会做四件事：
 
 - 自动进入正确仓库目录。
+- 自动关闭正在运行的浏览器，避免 Profile 文件写不进去，也避免验证时出现 `process count expected=0`。
 - 优化本机已经安装的浏览器。
 - 运行详细验证，确认优化是否真的生效。
 
@@ -71,15 +113,42 @@ Set-Location -LiteralPath $Repo
 如果你已经优化过，只想重新检查，复制这段：
 
 ```powershell
+$ErrorActionPreference = "Stop"
 $Repo = "C:\Users\Newby\Documents\浏览器优化\Browser-main"
+$BrowserProcessNames = @("chrome", "msedge", "brave", "vivaldi", "opera", "opera_gx", "firefox", "librewolf", "zen")
 $VerifyScript = Join-Path $Repo "scripts\deployment\Verify-BrowserOptimization.ps1"
-$PowerShellExe = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
-if (-not $PowerShellExe) { $PowerShellExe = (Get-Command powershell -ErrorAction Stop).Source }
+
+function Get-BestPowerShell {
+  $Pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+  if ($Pwsh) { return $Pwsh.Source }
+  return (Get-Command powershell -ErrorAction Stop).Source
+}
+
+function Stop-BrowsersForVerification {
+  $Processes = @(Get-Process -Name $BrowserProcessNames -ErrorAction SilentlyContinue | Sort-Object ProcessName, Id)
+  if ($Processes.Count -eq 0) { return }
+
+  Write-Host "检测到正在运行的浏览器。验证前必须关闭它们：" -ForegroundColor Yellow
+  $Processes | Select-Object ProcessName, Id, MainWindowTitle | Format-Table -AutoSize
+  Write-Host "8 秒后会自动关闭以上浏览器。需要取消请立刻按 Ctrl+C。" -ForegroundColor Yellow
+  Start-Sleep -Seconds 8
+
+  $Processes | Stop-Process -Force -ErrorAction SilentlyContinue
+  Start-Sleep -Seconds 3
+
+  $Left = @(Get-Process -Name $BrowserProcessNames -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique)
+  if ($Left.Count -gt 0) {
+    throw "仍有浏览器进程没有关闭：$($Left -join ', ')。请在任务管理器里结束它们后重新运行。"
+  }
+}
+
 if (-not (Test-Path -LiteralPath $VerifyScript)) { throw "找不到验证脚本：$VerifyScript" }
-$RunningBrowsers = @(Get-Process -Name chrome,msedge,brave,vivaldi,opera,firefox,librewolf,zen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName -Unique)
-if ($RunningBrowsers.Count -gt 0) { throw "请先关闭这些浏览器进程，然后重新粘贴这整段命令：$($RunningBrowsers -join ', ')" }
+$PowerShellExe = Get-BestPowerShell
 Set-Location -LiteralPath $Repo
+Stop-BrowsersForVerification
 & $PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $VerifyScript -RequireMachinePolicy -OnlyInstalled -Detailed
+$VerifyExitCode = $LASTEXITCODE
+if ($VerifyExitCode -ne 0) { throw "验证没有通过，退出码：$VerifyExitCode" }
 ```
 
 ## 为什么旧命令不能用
