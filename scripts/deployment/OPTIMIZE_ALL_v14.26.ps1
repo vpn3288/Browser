@@ -1,9 +1,12 @@
-<#
+﻿<#
 .SYNOPSIS
     Multi-browser clean, privacy, and stability optimizer for Windows.
 .DESCRIPTION
     Applies official browser policies and profile preferences for Chrome, Chromium,
     Edge, Brave, Opera, Vivaldi, Firefox, LibreWolf, and Zen Browser.
+    By default, only browsers detected on this machine are optimized. Use
+    -AllBrowsers when you intentionally want to write policy targets for every
+    supported browser.
 
     This script intentionally avoids traffic-evasion or fake fingerprint behavior.
     It focuses on clean UI, privacy, extension policy correctness, blank home/start
@@ -17,11 +20,18 @@ param(
     [switch]$UserOnly,
     [bool]$ApplyProfilePreferences = $true,
     [string]$ExtensionConfigPath,
-    [switch]$OnlyInstalled
+    [switch]$OnlyInstalled,
+    [switch]$AllBrowsers
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ($OnlyInstalled -and $AllBrowsers) {
+    throw 'Do not use -OnlyInstalled and -AllBrowsers together. The default already processes detected browsers only; use -AllBrowsers only for full-target mode.'
+}
+
+$ProcessInstalledOnly = -not $AllBrowsers
 
 $RepoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 
@@ -364,8 +374,14 @@ $ChromiumBrowsers = @(
         ExecutableNames = @('chrome.exe')
         CandidatePaths = @(
             (Join-Path $env:LOCALAPPDATA 'Chromium\Application\chrome.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Chromium\chrome-win\chrome.exe'),
             (Join-Path $env:ProgramFiles 'Chromium\Application\chrome.exe'),
-            (Join-Path ${env:ProgramFiles(x86)} 'Chromium\Application\chrome.exe')
+            (Join-Path ${env:ProgramFiles(x86)} 'Chromium\Application\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Desktop\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Downloads\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Documents\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Documents\Chromium\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Downloads\Chromium\chrome-win\chrome.exe')
         )
         Policies = $ChromiumCommonPolicies
         UsesEdgeStore = $false
@@ -569,10 +585,12 @@ function Set-BrowserRuntimeInfo {
         $exePath = Resolve-BrowserExecutable -Browser $browser
         $installed = -not [string]::IsNullOrWhiteSpace($exePath)
         $version = if ($installed) { Get-ExecutableVersion -Path $exePath } else { $null }
+        $detectionReason = if ($installed) { 'executable' } else { 'not detected' }
 
         $browser | Add-Member -MemberType NoteProperty -Name ExePath -Value $exePath -Force
         $browser | Add-Member -MemberType NoteProperty -Name Installed -Value $installed -Force
         $browser | Add-Member -MemberType NoteProperty -Name Version -Value $version -Force
+        $browser | Add-Member -MemberType NoteProperty -Name DetectionReason -Value $detectionReason -Force
 
         if ($installed -and ((Get-ObjectPropertyNames -Object $browser) -contains 'InstallRoot')) {
             $browser.InstallRoot = Split-Path $exePath -Parent
@@ -588,7 +606,7 @@ function Initialize-BrowserDetection {
     foreach ($browser in $all) {
         if ($browser.Installed) {
             $versionText = if ([string]::IsNullOrWhiteSpace($browser.Version)) { 'version unknown' } else { $browser.Version }
-            Write-Info "  $($browser.Name): $versionText - $($browser.ExePath)"
+            Write-Info "  $($browser.Name): $versionText - $($browser.ExePath) [$($browser.DetectionReason)]"
         }
         else {
             Write-Info "  $($browser.Name): not detected"
@@ -1066,31 +1084,33 @@ function Set-FirefoxUserJs {
 Write-Info "Running as user: $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
 Write-Info "Elevated: $IsAdmin"
 Write-Info "Dry run: $DryRun"
+$browserSelection = if ($ProcessInstalledOnly) { 'detected browsers only (default)' } else { 'all supported browsers' }
+Write-Info "Browser selection: $browserSelection"
 Write-Info "HKLM machine policies: $ApplyMachinePolicies"
 Write-Info "Extension config: $ExtensionConfigPath"
 
 Initialize-BrowserDetection
 
 foreach ($browser in $ChromiumBrowsers) {
-    if ($OnlyInstalled -and -not $browser.Installed) {
-        Write-Info "$($browser.Name) not detected; skipped because -OnlyInstalled was specified."
+    if ($ProcessInstalledOnly -and -not $browser.Installed) {
+        Write-Info "$($browser.Name) not detected; skipped. Use -AllBrowsers only if you intentionally want to write policy targets for browsers that are not installed."
         continue
     }
     Set-ChromiumPolicies -Browser $browser
     Set-ChromiumProfilePreferences -Browser $browser
 }
 
-if (-not $OnlyInstalled -or $Opera.Installed) {
+if (-not $ProcessInstalledOnly -or $Opera.Installed) {
     Set-ChromiumProfilePreferences -Browser $Opera
+    Write-Warn "Opera registry force-install policy is intentionally skipped because Opera does not document Chrome/Edge-compatible Windows enterprise policy support."
 }
 else {
-    Write-Info "Opera not detected; skipped because -OnlyInstalled was specified."
+    Write-Info "Opera not detected; skipped. Use -AllBrowsers only if you intentionally want to process every supported browser target."
 }
-Write-Warn "Opera registry force-install policy is intentionally skipped because Opera does not document Chrome/Edge-compatible Windows enterprise policy support."
 
 foreach ($browser in $FirefoxBrowsers) {
-    if ($OnlyInstalled -and -not $browser.Installed) {
-        Write-Info "$($browser.Name) not detected; skipped because -OnlyInstalled was specified."
+    if ($ProcessInstalledOnly -and -not $browser.Installed) {
+        Write-Info "$($browser.Name) not detected; skipped. Use -AllBrowsers only if you intentionally want to write policy files for browsers that are not installed."
         continue
     }
     Set-FirefoxPolicies -Browser $browser

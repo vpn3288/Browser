@@ -35,7 +35,7 @@ Chromium, Edge, Brave, or Vivaldi.
 Use an elevated PowerShell window for machine-level policies:
 
 ```powershell
-.\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1
+.\scripts\deployment\Invoke-BrowserOptimization.ps1
 ```
 
 Opening an elevated PowerShell window is not enough by itself if the command is
@@ -46,20 +46,25 @@ command directly in the elevated PowerShell window.
 For a dry run that does not change registry or profile files:
 
 ```powershell
-.\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1 -DryRun
+.\scripts\deployment\Invoke-BrowserOptimization.ps1 -DryRun
 ```
 
 For a read-only verification snapshot:
 
 ```powershell
-.\scripts\deployment\Verify-BrowserOptimization.ps1
+.\scripts\deployment\Invoke-BrowserOptimization.ps1 -VerifyOnly
 ```
 
 For strict HKLM verification after an elevated run:
 
 ```powershell
-.\scripts\deployment\Verify-BrowserOptimization.ps1 -RequireMachinePolicy
+.\scripts\deployment\Invoke-BrowserOptimization.ps1 -VerifyOnly -RequireMachinePolicy
 ```
+
+Since v14.26, optimization and verification default to detected browsers only.
+If fewer than 9 browsers are installed, missing browsers are skipped instead of
+reported as failures. Use `-AllBrowsers` only when you intentionally want strict
+coverage of every supported browser target.
 
 Then restart each browser and check the browser's policy page:
 

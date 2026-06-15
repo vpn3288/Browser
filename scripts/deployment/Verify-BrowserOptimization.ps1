@@ -1,14 +1,21 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [switch]$RequireMachinePolicy,
     [switch]$StrictProfilePreferences,
     [switch]$Quiet,
     [switch]$Detailed,
-    [switch]$OnlyInstalled
+    [switch]$OnlyInstalled,
+    [switch]$AllBrowsers
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ($OnlyInstalled -and $AllBrowsers) {
+    throw 'Do not use -OnlyInstalled and -AllBrowsers together. The default already verifies detected browsers only; use -AllBrowsers only for strict full-target verification.'
+}
+
+$ProcessInstalledOnly = -not $AllBrowsers
 
 $script:Results = New-Object System.Collections.Generic.List[object]
 
@@ -310,10 +317,89 @@ function Find-FirstExistingPath {
             continue
         }
         if (Test-Path -LiteralPath $path) {
-            return $path
+            return (Resolve-Path -LiteralPath $path).Path
         }
     }
     return $null
+}
+
+function Get-AppPathExecutable {
+    param(
+        [string[]]$ExecutableNames,
+        [switch]$SkipAppPaths
+    )
+
+    if ($SkipAppPaths) {
+        return $null
+    }
+
+    foreach ($exe in @($ExecutableNames)) {
+        $regPaths = @(
+            "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exe",
+            "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exe"
+        )
+        foreach ($regPath in $regPaths) {
+            try {
+                $item = Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue
+                $value = if ($null -ne $item) { $item.'(Default)' } else { $null }
+                if (-not [string]::IsNullOrWhiteSpace($value) -and (Test-Path -LiteralPath $value)) {
+                    return (Resolve-Path -LiteralPath $value).Path
+                }
+            }
+            catch {
+                continue
+            }
+        }
+    }
+    return $null
+}
+
+function Get-CommandExecutable {
+    param(
+        [string[]]$ExecutableNames,
+        [switch]$SkipCommandLookup
+    )
+
+    if ($SkipCommandLookup) {
+        return $null
+    }
+
+    foreach ($exe in @($ExecutableNames)) {
+        $commandName = [IO.Path]::GetFileNameWithoutExtension($exe)
+        $command = Get-Command $commandName -ErrorAction SilentlyContinue
+        if ($command -and $command.Source -and (Test-Path -LiteralPath $command.Source)) {
+            return (Resolve-Path -LiteralPath $command.Source).Path
+        }
+    }
+    return $null
+}
+
+function Resolve-BrowserExecutable {
+    param([object]$Browser)
+
+    $candidate = Find-FirstExistingPath -Paths $Browser.Candidates
+    if ($candidate) {
+        return $candidate
+    }
+
+    $skipAppPaths = $false
+    $skipAppPathProperty = $Browser.PSObject.Properties['SkipAppPaths']
+    if ($null -ne $skipAppPathProperty) {
+        $skipAppPaths = [bool]$skipAppPathProperty.Value
+    }
+
+    $appPath = Get-AppPathExecutable -ExecutableNames $Browser.ExecutableNames -SkipAppPaths:$skipAppPaths
+    if ($appPath) {
+        return $appPath
+    }
+
+    $skipCommandLookup = $false
+    $skipCommandLookupProperty = $Browser.PSObject.Properties['SkipCommandLookup']
+    if ($null -ne $skipCommandLookupProperty) {
+        $skipCommandLookup = [bool]$skipCommandLookupProperty.Value
+    }
+
+    return Get-CommandExecutable -ExecutableNames $Browser.ExecutableNames -SkipCommandLookup:$skipCommandLookup
 }
 
 function Get-ChromiumPreferenceFiles {
@@ -376,13 +462,27 @@ $chromiumBrowsers = @(
         Policy = 'SOFTWARE\Policies\Google\Chrome'
         UserDataRoot = Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data'
         Candidates = @((Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'), (Join-Path $programFilesX86 'Google\Chrome\Application\chrome.exe'), (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe'))
+        ExecutableNames = @('chrome.exe')
         Processes = @('chrome')
     },
     [pscustomobject]@{
         Name = 'Chromium'
         Policy = 'SOFTWARE\Policies\Chromium'
         UserDataRoot = Join-Path $env:LOCALAPPDATA 'Chromium\User Data'
-        Candidates = @((Join-Path $env:LOCALAPPDATA 'Chromium\Application\chrome.exe'), (Join-Path $env:ProgramFiles 'Chromium\Application\chrome.exe'), (Join-Path $programFilesX86 'Chromium\Application\chrome.exe'))
+        Candidates = @(
+            (Join-Path $env:LOCALAPPDATA 'Chromium\Application\chrome.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Chromium\chrome-win\chrome.exe'),
+            (Join-Path $env:ProgramFiles 'Chromium\Application\chrome.exe'),
+            (Join-Path $programFilesX86 'Chromium\Application\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Desktop\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Downloads\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Documents\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Documents\Chromium\chrome-win\chrome.exe'),
+            (Join-Path $env:USERPROFILE 'Downloads\Chromium\chrome-win\chrome.exe')
+        )
+        ExecutableNames = @('chrome.exe')
+        SkipAppPaths = $true
+        SkipCommandLookup = $true
         Processes = @('chrome')
     },
     [pscustomobject]@{
@@ -390,6 +490,7 @@ $chromiumBrowsers = @(
         Policy = 'SOFTWARE\Policies\Microsoft\Edge'
         UserDataRoot = Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\User Data'
         Candidates = @((Join-Path $programFilesX86 'Microsoft\Edge\Application\msedge.exe'), (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe'), (Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\Application\msedge.exe'))
+        ExecutableNames = @('msedge.exe')
         Processes = @('msedge')
     },
     [pscustomobject]@{
@@ -397,6 +498,7 @@ $chromiumBrowsers = @(
         Policy = 'SOFTWARE\Policies\BraveSoftware\Brave'
         UserDataRoot = Join-Path $env:LOCALAPPDATA 'BraveSoftware\Brave-Browser\User Data'
         Candidates = @((Join-Path $env:ProgramFiles 'BraveSoftware\Brave-Browser\Application\brave.exe'), (Join-Path $programFilesX86 'BraveSoftware\Brave-Browser\Application\brave.exe'), (Join-Path $env:LOCALAPPDATA 'BraveSoftware\Brave-Browser\Application\brave.exe'))
+        ExecutableNames = @('brave.exe')
         Processes = @('brave')
     },
     [pscustomobject]@{
@@ -404,6 +506,7 @@ $chromiumBrowsers = @(
         Policy = 'SOFTWARE\Policies\Vivaldi'
         UserDataRoot = Join-Path $env:LOCALAPPDATA 'Vivaldi\User Data'
         Candidates = @((Join-Path $env:LOCALAPPDATA 'Vivaldi\Application\vivaldi.exe'), (Join-Path $env:ProgramFiles 'Vivaldi\Application\vivaldi.exe'), (Join-Path $programFilesX86 'Vivaldi\Application\vivaldi.exe'))
+        ExecutableNames = @('vivaldi.exe')
         Processes = @('vivaldi')
     }
 )
@@ -412,6 +515,7 @@ $opera = [pscustomobject]@{
     Name = 'Opera'
     UserDataRoot = Join-Path $env:APPDATA 'Opera Software\Opera Stable'
     Candidates = @((Join-Path $env:LOCALAPPDATA 'Programs\Opera\opera.exe'), (Join-Path $env:ProgramFiles 'Opera\opera.exe'), (Join-Path $programFilesX86 'Opera\opera.exe'))
+    ExecutableNames = @('opera.exe')
     Processes = @('opera')
 }
 
@@ -420,6 +524,7 @@ $firefoxBrowsers = @(
         Name = 'Firefox'
         InstallRoot = Join-Path $env:ProgramFiles 'Mozilla Firefox'
         Candidates = @((Join-Path $env:ProgramFiles 'Mozilla Firefox\firefox.exe'), (Join-Path $programFilesX86 'Mozilla Firefox\firefox.exe'))
+        ExecutableNames = @('firefox.exe')
         Profiles = Join-Path $env:APPDATA 'Mozilla\Firefox\Profiles'
         Processes = @('firefox')
     },
@@ -427,13 +532,23 @@ $firefoxBrowsers = @(
         Name = 'LibreWolf'
         InstallRoot = Join-Path $env:ProgramFiles 'LibreWolf'
         Candidates = @((Join-Path $env:ProgramFiles 'LibreWolf\librewolf.exe'), (Join-Path $programFilesX86 'LibreWolf\librewolf.exe'))
+        ExecutableNames = @('librewolf.exe')
         Profiles = Join-Path $env:APPDATA 'LibreWolf\Profiles'
         Processes = @('librewolf')
     },
     [pscustomobject]@{
         Name = 'Zen'
         InstallRoot = Join-Path $env:ProgramFiles 'Zen Browser'
-        Candidates = @((Join-Path $env:ProgramFiles 'Zen Browser\zen.exe'), (Join-Path $programFilesX86 'Zen Browser\zen.exe'))
+        Candidates = @(
+            (Join-Path $env:ProgramFiles 'Zen Browser\zen.exe'),
+            (Join-Path $programFilesX86 'Zen Browser\zen.exe'),
+            (Join-Path $env:ProgramFiles 'Zen\zen.exe'),
+            (Join-Path $env:ProgramFiles 'Zen-Browser\zen.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Zen\zen.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Zen-Browser\zen.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Zen Browser\zen.exe')
+        )
+        ExecutableNames = @('zen.exe')
         Profiles = Join-Path $env:APPDATA 'zen\Profiles'
         Processes = @('zen')
     }
@@ -593,9 +708,9 @@ else {
 }
 
 foreach ($browser in $chromiumBrowsers) {
-    $exe = Find-FirstExistingPath -Paths $browser.Candidates
+    $exe = Resolve-BrowserExecutable -Browser $browser
     if ($null -eq $exe) {
-        if ($OnlyInstalled) {
+        if ($ProcessInstalledOnly) {
             continue
         }
         Add-Result -Level FAIL -Scope $browser.Name -Name 'installed executable' -Expected 'installed' -Actual '<missing>'
@@ -642,9 +757,9 @@ foreach ($browser in $chromiumBrowsers) {
     }
 }
 
-$operaExe = Find-FirstExistingPath -Paths $opera.Candidates
+$operaExe = Resolve-BrowserExecutable -Browser $opera
 if ($null -eq $operaExe) {
-    if (-not $OnlyInstalled) {
+    if (-not $ProcessInstalledOnly) {
         Add-Result -Level FAIL -Scope 'Opera' -Name 'installed executable' -Expected 'installed' -Actual '<missing>'
     }
 }
@@ -662,9 +777,9 @@ else {
 }
 
 foreach ($browser in $firefoxBrowsers) {
-    $exe = Find-FirstExistingPath -Paths $browser.Candidates
+    $exe = Resolve-BrowserExecutable -Browser $browser
     if ($null -eq $exe) {
-        if ($OnlyInstalled) {
+        if ($ProcessInstalledOnly) {
             continue
         }
         Add-Result -Level FAIL -Scope $browser.Name -Name 'installed executable' -Expected 'installed' -Actual '<missing>'
@@ -672,6 +787,7 @@ foreach ($browser in $firefoxBrowsers) {
     else {
         $version = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion
         Add-Result -Level PASS -Scope $browser.Name -Name 'installed executable' -Expected 'installed' -Actual "$version :: $exe"
+        $browser.InstallRoot = Split-Path $exe -Parent
     }
 
     $policyPath = Join-Path $browser.InstallRoot 'distribution\policies.json'
@@ -727,7 +843,8 @@ if (-not $Quiet) {
     Write-Host "RequireMachinePolicy: $RequireMachinePolicy"
     Write-Host "StrictProfilePreferences: $StrictProfilePreferences"
     Write-Host "Detailed: $Detailed"
-    Write-Host "OnlyInstalled: $OnlyInstalled"
+    $browserSelection = if ($ProcessInstalledOnly) { 'detected browsers only (default)' } else { 'all supported browsers' }
+    Write-Host "Browser selection: $browserSelection"
     Write-Host ''
     Write-Host "Summary: PASS=$passCount WARN=$warnCount FAIL=$failCount"
     Write-Host ''

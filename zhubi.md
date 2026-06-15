@@ -1,6 +1,6 @@
 # 当前主笔结论 - Multi-Browser Clean Optimizer
 
-更新日期：2026-06-09
+更新日期：2026-06-15
 
 当前脚本目标已经调整为浏览器清洁、隐私、安全、稳定和扩展策略正确性优化。后续维护只应围绕官方策略、可验证 Profile 偏好、浏览器真实功能和不过度优化展开。
 
@@ -16,9 +16,20 @@
 当前入口：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\OPTIMIZE_ALL_v14.25.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Verify-BrowserOptimization.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1 -VerifyOnly
 ```
+
+当前版本：v14.26。默认只优化和验证本机检测到的浏览器；如果没有 9 个浏览器，未安装的浏览器会跳过，不再被当成失败。需要强制检查 9 个目标浏览器时才使用 `-AllBrowsers`。
+
+v14.26 修复内容：
+
+1. 修复 README 硬编码 `C:\Users\Newby\Documents\浏览器优化\Browser-main` 导致仓库目录不存在的问题。
+2. 新增 `scripts\deployment\Invoke-BrowserOptimization.ps1`，由入口脚本自动定位仓库根目录，先完成预检，再执行优化和验证。
+3. `OPTIMIZE_ALL_v14.26.ps1` 默认只处理已检测到的浏览器，保留 `-AllBrowsers` 作为全量模式。
+4. `Verify-BrowserOptimization.ps1` 默认只验证已检测到的浏览器，避免未安装浏览器造成误报 FAIL。
+5. Chromium 检测补充常见 `chrome-win\chrome.exe` 解压目录，兼容 snapshot zip 解压版 Chromium。
 
 以下内容是历史审核记录，仅作为追溯材料；如与当前 README、脚本和 `docs/official-sources.md` 冲突，以当前脚本和官方文档为准。
 
@@ -722,6 +733,7 @@ $firefoxPolicies = @{
 
 | 版本 | 日期 | 主要更新 | 脚本文件 |
 |------|------|----------|----------|
+| v14.26 | 2026-06-15 | 完整修复入口硬编码路径、默认只处理已安装浏览器、补充稳定入口和 Chromium zip 检测 | `.\Invoke-BrowserOptimization.ps1` |
 | v14.25 | 2026-05-18 | 修复1个BUG（$userLocalAppData硬编码路径） | `.\OPTIMIZE_ALL_v14.25.ps1` |
 | v14.24 | 2026-05-18 | 修复1个BUG（Edge WebRtcIPHandlingUrl格式错误） | `.\OPTIMIZE_ALL_v14.24.ps1` |
 | v14.23 | 2026-05-18 | 修复2个BUG（BraveP3AEnabled数据类型错误、Firefox RequestedLocales格式错误） | `.\OPTIMIZE_ALL_v14.23.ps1` |
@@ -834,11 +846,10 @@ intl.locale.requested = "zh-CN"
 ```powershell
 cd C:\Browser
 git pull
-cd scripts\deployment
-.\OPTIMIZE_ALL_v14.25.ps1
+.\scripts\deployment\Invoke-BrowserOptimization.ps1
 ```
 
-**选择浏览器后，优化自动完成。不会创建任何启动器。**
+**默认只优化检测到的浏览器。没有安装满 9 个浏览器也不会失败。需要全量严格检查时加 `-AllBrowsers`。**
 
 **⚠️ Firefox系浏览器（Firefox/LibreWolf/Zen）需要重启后配置才会生效。**
 
