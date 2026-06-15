@@ -846,7 +846,7 @@ intl.locale.requested = "zh-CN"
 ```powershell
 cd C:\Browser
 git pull
-.\scripts\deployment\Invoke-BrowserOptimization.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1
 ```
 
 **默认只优化检测到的浏览器。没有安装满 9 个浏览器也不会失败。需要全量严格检查时加 `-AllBrowsers`。**

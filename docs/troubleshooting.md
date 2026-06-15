@@ -35,7 +35,7 @@ Chromium, Edge, Brave, or Vivaldi.
 Use an elevated PowerShell window for machine-level policies:
 
 ```powershell
-.\scripts\deployment\Invoke-BrowserOptimization.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1
 ```
 
 Opening an elevated PowerShell window is not enough by itself if the command is
@@ -46,19 +46,19 @@ command directly in the elevated PowerShell window.
 For a dry run that does not change registry or profile files:
 
 ```powershell
-.\scripts\deployment\Invoke-BrowserOptimization.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1 -DryRun
 ```
 
 For a read-only verification snapshot:
 
 ```powershell
-.\scripts\deployment\Invoke-BrowserOptimization.ps1 -VerifyOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1 -VerifyOnly
 ```
 
 For strict HKLM verification after an elevated run:
 
 ```powershell
-.\scripts\deployment\Invoke-BrowserOptimization.ps1 -VerifyOnly -RequireMachinePolicy
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deployment\Invoke-BrowserOptimization.ps1 -VerifyOnly -RequireMachinePolicy
 ```
 
 Since v14.26, optimization and verification default to detected browsers only.

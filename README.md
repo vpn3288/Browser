@@ -47,7 +47,7 @@ Expand-Archive -LiteralPath $Zip -DestinationPath $Extract -Force
 if (Test-Path -LiteralPath $Repo) { Move-Item -LiteralPath $Repo -Destination $Backup }
 Move-Item -LiteralPath (Join-Path $Extract "Browser-main") -Destination $Repo
 
-& (Join-Path $Repo "scripts\deployment\Invoke-BrowserOptimization.ps1")
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Repo "scripts\deployment\Invoke-BrowserOptimization.ps1")
 ```
 
 ## 运行成功怎么看
